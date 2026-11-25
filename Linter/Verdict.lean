@@ -10,7 +10,7 @@ def findingsIn (mode : Mode) (codebase : Codebase) (files : List Match.LexedFile
   (rule.checks.filter (Match.runsIn mode ·.detector)).flatMap fun check =>
     (Match.detectorHits codebase check.detector files).map fun placed =>
       { rule := rule.id, severity := placed.severity, path := placed.path, line := placed.hit.start.line,
-        column := placed.hit.start.column, span := placed.hit.span, snippet := placed.hit.snippet, why := rule.why, fix := rule.fix }
+        column := placed.hit.start.column, span := placed.hit.span, snippet := placed.hit.snippet.replace "\r" "", why := rule.why, fix := rule.fix }
 
 def lexed (file : CheckedFile) : Except FileError Match.LexedFile :=
   match lexFile file.language file.source.code with

@@ -38,6 +38,7 @@ def shapes : Piece → List TokenShape
   | .anyOf options => options
   | .lineStart shape => [shape]
   | .many shape => [shape]
+  | .notBefore options => options
   | .gap _ => []
   | .skipBalanced => []
 
@@ -102,6 +103,8 @@ def spans : Piece → List Token → List Nat
     match (tokens.takeWhile (fits shape ·)).length with
     | 0 => []
     | run => [run]
+  | .notBefore options, token :: _ => if options.any (fits · token) then [] else [0]
+  | .notBefore _, [] => [0]
   | .gap limit, tokens => List.range (reach limit 0 tokens + 1)
   | .skipBalanced, token :: rest =>
     match opening token with

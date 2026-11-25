@@ -50,8 +50,8 @@ def timer : Rule where
 def partialName (name : String) : TokenShape :=
   .except (.except (.segment name) (.containing .identifier "NE.")) (.containing .identifier "NonEmpty.")
 
-def follower : Piece :=
-  .anyOf [.kind .identifier, .kind .text, .kind .number, .kind .character, .except (.except (.kind .symbol) (.word .symbol "::")) (.word .symbol "=")]
+def used : Piece :=
+  .notBefore [.word .symbol "::", .word .symbol "="]
 
 def escapeHatch : Rule where
   id := ⟨.safety, "escape-hatch"⟩
@@ -60,9 +60,9 @@ def escapeHatch : Rule where
   checks := [
     { detector := .fixed .noGo (.tokens [.haskell] .code [.anyOf
         ((["head", "tail", "init", "last", "fromJust"].map partialName) ++
-          (["undefined", "unsafePerformIO", "unsafeCoerce"].map (.word .identifier ·)) ++ [.word .symbol "!!"]), follower])
+          (["undefined", "unsafePerformIO", "unsafeCoerce"].map (.word .identifier ·)) ++ [.word .symbol "!!"]), used])
       examples := [{ bad := [⟨"Bad.hs", "first xs = head xs\n"⟩, ⟨"Text.hs", "initial t = isUpper (T.head t)\n"⟩,
-                             ⟨"Maybe.hs", "value = Maybe.fromJust . lookup key\n"⟩],
+                             ⟨"Maybe.hs", "value = Maybe.fromJust . lookup key\n"⟩, ⟨"Free.hs", "firstOf :: [Int] -> Int\nfirstOf = head"⟩],
                      good := [⟨"Good.hs",
                        "import Data.Text (head)\nimport qualified Data.List.NonEmpty as NE\nfirst xs = NE.head xs\nlast' = NonEmpty.last\n" ++
                        "head :: Tree a -> a\nlabel = \"init\"\n"⟩] }] },

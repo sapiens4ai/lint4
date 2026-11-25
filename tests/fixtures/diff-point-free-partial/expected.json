@@ -1,0 +1,27 @@
+{
+  "mode": "diff",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 2,
+    "javascript": 0,
+    "lean": 0,
+    "purescript": 0
+  },
+  "findings": [
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Fresh.hs",
+      "line": 4,
+      "column": 11,
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "snippet": "fromJust",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    }
+  ],
+  "errors": []
+}
