@@ -1,0 +1,15 @@
+diff --git "a/src/\303\234n\303\257code.hs" "b/src/\303\234n\303\257code.hs"
+new file mode 100644
+index 0000000..b8bc701
+--- /dev/null
++++ "b/src/\303\234n\303\257code.hs"
+@@ -0,0 +1,2 @@
++module Unicode where
++x = 1 -- note
+diff --git "a/src/Say\"Hi\"\tX.hs" "b/src/Say\"Hi\"\tX.hs"
+index 1111111..2222222 100644
+--- "a/src/Say\"Hi\"\tX.hs"
++++ "b/src/Say\"Hi\"\tX.hs"
+@@ -1,1 +1,2 @@
+ module SayHi where
++y = 2 -- quoted

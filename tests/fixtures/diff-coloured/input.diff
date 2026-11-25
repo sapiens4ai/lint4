@@ -1,0 +1,6 @@
+[1mdiff --git a/A.hs b/A.hs[m
+[1m--- a/A.hs[m
+[1m+++ b/A.hs[m
+[36m@@ -1,1 +1,2 @@[m
+ module A where[m
+[32m+a = 1 -- bad[m

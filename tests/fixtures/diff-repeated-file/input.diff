@@ -1,0 +1,12 @@
+diff --git a/A.hs b/A.hs
+--- a/A.hs
++++ b/A.hs
+@@ -1,1 +1,2 @@
+ module A where
++a = 1 -- bad
+diff --git a/A.hs b/A.hs
+--- a/A.hs
++++ b/A.hs
+@@ -1,1 +1,2 @@
+ module A where
++a = 1 -- bad

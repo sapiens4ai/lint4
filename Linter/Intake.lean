@@ -30,11 +30,17 @@ inductive IntakeError where
   | unpack (archive : FilePath) (detail : String)
   | unreadable (source : String) (detail : String)
   | malformed (detail : String)
+  | empty
+  | coloured
+  | unchanged
 
 def IntakeError.message : IntakeError → String
   | .unpack archive detail => s!"cannot unpack {archive}: {detail}"
   | .unreadable source detail => s!"cannot read {source}: {detail}"
   | .malformed detail => detail
+  | .empty => "the diff is empty: nothing to check"
+  | .coloured => "the diff contains terminal colour codes: produce it with git diff --no-color --unified=100000"
+  | .unchanged => "no changed file found: send a unified diff with hunks, produced by git diff --no-color --unified=100000"
 
 inductive Kind where
   | source (language : Language)
@@ -112,17 +118,97 @@ structure Changed where
   added : Array Nat
   hunks : Nat
 
+inductive Side where
+  | absent
+  | named (path : String)
+
+structure Header where
+  git : Option (String × String)
+  old : Side
+
 structure Reading where
   done : Array Changed
   current : Option Changed
+  header : Header
   oldLeft : Nat
   newLeft : Nat
 
-def target (line : String) : Option String :=
-  let name := ((line.drop 4).toString.splitOn "\t").headD ""
-  if name == "/dev/null" then none
-  else if name.startsWith "b/" then some (name.drop 2).toString
-  else some name
+def octal (digit : Char) : Option Nat :=
+  if '0' ≤ digit && digit ≤ '7' then some (digit.toNat - '0'.toNat) else none
+
+def escaped : Char → Option UInt8
+  | 'n' => some 10
+  | 't' => some 9
+  | 'r' => some 13
+  | 'a' => some 7
+  | 'b' => some 8
+  | 'f' => some 12
+  | 'v' => some 11
+  | '"' => some 34
+  | '\\' => some 92
+  | _ => none
+
+def escape : List Char → Option (UInt8 × List Char)
+  | first :: second :: third :: rest =>
+    match octal first, octal second, octal third with
+    | some high, some middle, some low => some ((high * 64 + middle * 8 + low).toUInt8, rest)
+    | _, _, _ => (escaped first).map (·, second :: third :: rest)
+  | first :: rest => (escaped first).map (·, rest)
+  | [] => none
+
+def unquoted : Nat → ByteArray → List Char → Option (String × List Char)
+  | 0, _, _ => none
+  | _ + 1, _, [] => none
+  | _ + 1, bytes, '"' :: rest => (String.fromUTF8? bytes).map (·, rest)
+  | fuel + 1, bytes, '\\' :: rest => (escape rest).bind fun (byte, after) => unquoted fuel (bytes.push byte) after
+  | fuel + 1, bytes, char :: rest => unquoted fuel (bytes ++ char.toString.toUTF8) rest
+
+def quoted (chars : List Char) : Option (String × List Char) :=
+  match chars with
+  | '"' :: rest => unquoted chars.length .empty rest
+  | _ => none
+
+def side (line : String) : Except String Side :=
+  let field := (line.drop 4).toString
+  match quoted field.toList, field.startsWith "\"" with
+  | some (path, _), _ => .ok (.named path)
+  | none, true => .error s!"cannot decode quoted path: {line}"
+  | none, false =>
+    let name := (field.splitOn "\t").headD ""
+    if name == "/dev/null" then .ok .absent else .ok (.named name)
+
+def halves (chars : List Char) : Option (String × String) :=
+  let middle := chars.length / 2
+  match chars.drop middle with
+  | ' ' :: second => if chars.length % 2 == 1 then some (String.ofList (chars.take middle), String.ofList second) else none
+  | _ => none
+
+def gitPair (line : String) : Option (String × String) :=
+  let chars := (line.drop "diff --git ".length).toString.toList
+  match quoted chars with
+  | some (first, ' ' :: rest) => some (first, ((quoted rest).map (·.1)).getD (String.ofList rest))
+  | some _ => none
+  | none => halves chars
+
+def prefixOf (path : String) : Option Char :=
+  match path.toList with
+  | letter :: '/' :: _ :: _ => if letter.isAlphanum then some letter else none
+  | _ => none
+
+def mnemonic (old new : String) : Bool :=
+  match prefixOf old, prefixOf new with
+  | some before, some after => before != after
+  | _, _ => false
+
+def prefixed (header : Header) (path : String) : Bool :=
+  match header.old, header.git with
+  | .named old, _ => mnemonic old path
+  | .absent, some (old, new) => mnemonic old new
+  | .absent, none => prefixOf path == some 'b'
+
+def target (header : Header) : Side → Option String
+  | .absent => none
+  | .named path => some (if prefixed header path then (path.drop 2).toString else path)
 
 def range (field : String) : Option (Nat × Nat) :=
   match (field.drop 1).toString.splitOn "," with
@@ -158,32 +244,57 @@ def body (state : Reading) (changed : Changed) (line : String) : Except String R
   | '\\' :: _ => .ok state
   | _ => .error s!"{label changed}: malformed hunk line: {line}"
 
+def closed (state : Reading) : Reading :=
+  { state with done := state.done ++ state.current.toArray, current := none }
+
+def fresh : Header := ⟨none, .absent⟩
+
 def step (state : Reading) (line : String) : Except String Reading :=
   if state.oldLeft + state.newLeft > 0 then
     match state.current with
     | some changed => body state changed line
     | none => .error "hunk without a file header"
+  else if line.startsWith "diff --git " then .ok { closed state with header := ⟨gitPair line, .absent⟩ }
+  else if line.startsWith "--- " then (side line).map fun old => { closed state with header := { state.header with old } }
   else if line.startsWith "+++ " then
-    .ok { state with done := state.done ++ state.current.toArray, current := some ⟨target line, #[], #[], 0⟩ }
+    (side line).map fun new => { closed state with current := some ⟨target state.header new, #[], #[], 0⟩, header := fresh }
   else if line.startsWith "@@ " then opened state line
   else .ok state
 
+def repeatedPath (changes : List Changed) : Option String :=
+  let paths := changes.filterMap (·.path)
+  paths.zipIdx.findSome? fun (path, index) => if (paths.take index).contains path then some path else none
+
 def parse (text : String) : Except String (List Changed) := do
-  let state ← (text.splitOn "\n").foldlM step ⟨#[], none, 0, 0⟩
+  let state ← (text.splitOn "\n").foldlM step ⟨#[], none, fresh, 0, 0⟩
   if state.oldLeft + state.newLeft > 0 then throw "diff ends inside a hunk"
-  pure (state.done ++ state.current.toArray).toList
+  let changes := (closed state).done.toList
+  match repeatedPath changes with
+  | some path => throw s!"malformed diff: {path} appears more than once"
+  | none => pure changes
+
+def changesIn (text : String) : Except IntakeError (List Changed) := do
+  if text.trimAscii.isEmpty then throw .empty
+  let changes ← (parse text).mapError .malformed
+  if changes.any (·.hunks > 0) then pure changes
+  else if (text.splitOn "\x1b[").length > 1 then throw .coloured
+  else throw .unchanged
 
 def vendoredPath (policy : Policy) (path : String) : Bool :=
   (System.FilePath.mk path).components.any policy.vendored.contains
 
+def diffKind (foreign : Foreign) (path : String) : Option Kind :=
+  match (System.FilePath.mk path).extension with
+  | some extension => if extension == foreign.script then some (.source foreign.language) else (Language.ofExtension extension).map .source
+  | none => none
+
 def rebuild (policy : Policy) (changes : List Changed) : Submission :=
-  let present := changes.filterMap (·.path)
   let sources := changes.filterMap fun changed =>
     changed.path.bind fun path =>
       if changed.hunks == 0 || vendoredPath policy path then none
       else some (SourceFile.mk path (String.join (changed.lines.toList.map (· ++ "\n"))), changed.added.toList)
   let files := sources.flatMap fun (source, _) =>
-    match (kindOf policy.foreign present source.path).bind (place policy · source) with
+    match (diffKind policy.foreign source.path).bind (place policy · source) with
     | some (.checked file) => [file]
     | some (.unreadable _ _) | some (.orphan _) | none => []
   .diff files (sources.map fun (source, lines) => AddedLines.mk source.path lines)
@@ -210,7 +321,7 @@ def read (policy : Policy) : Input → IO (Except IntakeError Submission)
     | .error problem => pure (.error (.unpack archive (toString problem)))
   | .diff source => do
     match ← (diffText source).toBaseIO with
-    | .ok text => pure ((parse text).mapError IntakeError.malformed |>.map (rebuild policy))
+    | .ok text => pure ((changesIn text).map (rebuild policy))
     | .error problem => pure (.error (.unreadable (sourceName source) (toString problem)))
 
 end Linter.Intake

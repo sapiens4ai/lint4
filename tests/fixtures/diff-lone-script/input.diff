@@ -1,0 +1,7 @@
+diff --git a/app/Audio.js b/app/Audio.js
+index 5a058a3..4e54a0f 100644
+--- a/app/Audio.js
++++ b/app/Audio.js
+@@ -1,1 +1,2 @@
+ export const rate = context => context.sampleRate;
++export const later = f => () => setTimeout(f, 100);

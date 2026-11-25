@@ -1,0 +1,7 @@
+diff --git a/A.hs a/A.hs
+index f2b03c4..d0ae224 100644
+--- a/A.hs
++++ a/A.hs
+@@ -1,1 +1,2 @@
+ module A where
++a = 1 -- bad
