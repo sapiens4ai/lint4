@@ -25,8 +25,8 @@ def afterFields : Nat → List Char → List Char
 
 def listed (line : String) : Option Entry :=
   match (line.splitOn " ").filter (· != "") with
-  | mode :: _ :: _ :: size :: _ :: _ :: _ :: _ :: _ :: _ =>
-    if mode.length == 10 then size.toNat?.map (Entry.mk (String.ofList ((afterFields 8 line.toList).drop 1)) ·) else none
+  | _ :: version :: _ :: size :: _ :: _ :: _ :: _ :: _ :: _ =>
+    if version.contains '.' then size.toNat?.map (Entry.mk (String.ofList ((afterFields 8 line.toList).drop 1)) ·) else none
   | _ => none
 
 def entries (listing : String) : List Entry :=
