@@ -5,19 +5,13 @@ on:
     inputs:
       url:
         type: string
-        required: false
         default: https://dev.sapiens4.ai/lint4
-      fail-on:
-        type: string
-        required: false
-        default: no-go
 
 permissions:
   contents: read
 
 jobs:
   lint4:
-    name: lint4
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,184 +23,19 @@ jobs:
       - name: Lint the change
         shell: bash
         env:
-          LINT4_URL: ${{ inputs.url }}
-          FAIL_ON: ${{ inputs.fail-on }}
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE: ${{ github.event.before }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          URL: ${{ inputs.url }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          MAIN: origin/${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-
-          api="${LINT4_URL%/}"
-          empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
-          zeros=0000000000000000000000000000000000000000
-          max_bytes=$((5 * 1024 * 1024))
-          work="${RUNNER_TEMP:-$(mktemp -d)}"
-          diff_file="$work/lint4.diff"
-          report="$work/lint4.json"
-          summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
-
-          case "$FAIL_ON" in
-            no-go) threshold=3 ;;
-            warning) threshold=2 ;;
-            could-be-better) threshold=1 ;;
-            *) echo "::error title=lint4::fail-on must be no-go, warning or could-be-better, got '$FAIL_ON'"; exit 1 ;;
-          esac
-
-          is_commit() {
-            [ -n "$1" ] && [ "$1" != "$zeros" ] && git cat-file -e "$1^{commit}" 2>/dev/null
-          }
-
-          head_sha=$(git rev-parse HEAD)
-          base=""
-          base_source=""
-
-          if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = pull_request_target ]; then
-            if is_commit "${PR_BASE:-}"; then
-              base="$PR_BASE"
-              base_source="pull request base"
-            fi
-          elif [ "$EVENT_NAME" = push ]; then
-            if is_commit "${PUSH_BEFORE:-}"; then
-              base="$PUSH_BEFORE"
-              base_source="previous push"
-            fi
-          fi
-
-          if [ -z "$base" ] && [ -n "${DEFAULT_BRANCH:-}" ]; then
-            if mb=$(git merge-base "refs/remotes/origin/$DEFAULT_BRANCH" "$head_sha" 2>/dev/null); then
-              if [ "$mb" != "$head_sha" ] || [ "${GITHUB_REF:-}" != "refs/heads/$DEFAULT_BRANCH" ]; then
-                base="$mb"
-                base_source="merge-base with $DEFAULT_BRANCH"
-              fi
-            fi
-          fi
-
-          if [ -z "$base" ]; then
-            base="$empty_tree"
-            base_source="empty tree"
-          fi
-
-          echo "lint4: $EVENT_NAME, base ${base:0:12} ($base_source), head ${head_sha:0:12}"
-
-          git -c core.quotePath=false diff --no-color --no-ext-diff --unified=100000 "$base" "$head_sha" > "$diff_file"
-          bytes=$(wc -c < "$diff_file" | tr -d ' ')
-
-          if [ "$bytes" -eq 0 ]; then
-            echo "::notice title=lint4::Nothing changed between ${base:0:12} and ${head_sha:0:12}"
-            printf '## lint4\n\nNothing changed between `%s` and `%s`.\n' "${base:0:12}" "${head_sha:0:12}" >> "$summary"
-            exit 0
-          fi
-
-          if [ "$bytes" -gt "$max_bytes" ]; then
-            echo "::notice title=lint4::Diff is $bytes bytes against the $base_source, over the $max_bytes byte limit; skipped"
-            printf '## lint4\n\nSkipped: the diff against the %s is %s bytes, over the %s byte limit.\n' "$base_source" "$bytes" "$max_bytes" >> "$summary"
-            exit 0
-          fi
-
-          post() {
-            curl -sS --compressed --max-time 240 \
-              -H 'Content-Type: text/plain' \
-              --data-binary @"$diff_file" \
-              -o "$report" -w '%{http_code}' \
-              "$api/diff"
-          }
-
-          status=$(post) || status=000
-          echo "lint4: POST $api/diff ($bytes bytes) -> HTTP $status"
-          if [ "$status" = 000 ] || [ "$status" -ge 500 ]; then
-            sleep 5
-            status=$(post) || status=000
-            echo "lint4: retry -> HTTP $status"
-          fi
-
-          if [ "$status" != 200 ]; then
-            message=$(jq -r '.error // empty' "$report" 2>/dev/null || true)
-            [ -n "$message" ] || message=$(head -c 500 "$report" 2>/dev/null || true)
-            [ -n "$message" ] || message="no response"
-            echo "::error title=lint4 HTTP $status::$message"
-            printf '## lint4\n\nThe linter answered HTTP %s: %s\n' "$status" "$message" >> "$summary"
-            exit 1
-          fi
-
-          jq -r '
-            def prop: tostring | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A") | gsub(":"; "%3A") | gsub(","; "%2C");
-            def msg: tostring | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
-            (.findings // [])[]
-            | ({"no-go": "error", "warning": "warning", "could-be-better": "notice"}[.severity] // "warning") as $level
-            | [ "file=\(.path | prop)",
-                (if .line then "line=\(.line | prop)" else empty end),
-                (if .column then "col=\(.column | prop)" else empty end),
-                "title=\(.rule | prop)" ] as $props
-            | "::\($level) \($props | join(","))::\("\(.why) — \(.fix)" | msg)"
-          ' "$report"
-
-          jq -r '
-            def prop: tostring | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A") | gsub(":"; "%3A") | gsub(","; "%2C");
-            def msg: tostring | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
-            (.errors // [])[]
-            | "::error \(if .path then "file=\(.path | prop)," else "" end)title=lint4 could not check::\(.message | msg)"
-          ' "$report"
-
-          outcome=$(jq -r '.outcome // "unknown"' "$report")
-          over=$(jq --argjson t "$threshold" '
-            [ (.findings // [])[] | {"no-go": 3, "warning": 2, "could-be-better": 1}[.severity] // 0 | select(. >= $t) ] | length
-          ' "$report")
-
-          jq -r --arg outcome "$outcome" --arg base "${base:0:12}" --arg source "$base_source" --arg head "${head_sha:0:12}" '
-            def cell: tostring | gsub("\\|"; "\\|") | gsub("\n"; " ");
-            (.findings // []) as $f
-            | "## lint4: \($outcome)",
-              "",
-              "Diff `\($base)` (\($source)) → `\($head)`. Checked: \(.checked // {} | to_entries | map(select(.value > 0) | "\(.key) \(.value)") | if length == 0 then "no linted files" else join(", ") end).",
-              "",
-              "| Severity | Findings |",
-              "|---|---|",
-              ( ("no-go", "warning", "could-be-better") as $s | "| \($s) | \([$f[] | select(.severity == $s)] | length) |" ),
-              "",
-              ( if ($f | length) > 0 then
-                  "### Top rules",
-                  "",
-                  "| Rule | Severity | Count |",
-                  "|---|---|---|",
-                  ( $f | group_by(.rule) | map({rule: .[0].rule, severity: .[0].severity, n: length}) | sort_by(-.n) | .[:10][]
-                    | "| `\(.rule)` | \(.severity) | \(.n) |" ),
-                  "",
-                  "### Findings",
-                  "",
-                  "| Where | Rule | Why | Fix |",
-                  "|---|---|---|---|",
-                  ( $f[:100][] | "| `\(.path | cell):\(.line // "")` | \(.rule | cell) | \(.why | cell) | \(.fix | cell) |" ),
-                  ( if ($f | length) > 100 then "", "…and \(($f | length) - 100) more." else empty end ),
-                  ""
-                else empty end ),
-              ( if ((.errors // []) | length) > 0 then
-                  "### Not checked",
-                  "",
-                  ( .errors[] | "- `\(.path // "?" | cell)`: \(.message | cell)" ),
-                  ""
-                else empty end )
-          ' "$report" >> "$summary"
-
-          case "$outcome" in
-            passed)
-              if [ "$over" -gt 0 ]; then
-                echo "::error title=lint4::$over finding(s) at or above $FAIL_ON"
-                exit 1
-              fi
-              echo "lint4: passed"
-              ;;
-            blocked)
-              echo "::error title=lint4::Blocked by no-go findings"
-              exit 1
-              ;;
-            incomplete)
-              echo "::error title=lint4::Incomplete: some changed files could not be checked, so the change cannot be cleared"
-              exit 1
-              ;;
-            *)
-              echo "::error title=lint4::Unexpected outcome '$outcome'"
-              exit 1
-              ;;
-          esac
+          git cat-file -e "$BASE^{commit}" 2>/dev/null || BASE=$(git merge-base "$MAIN" HEAD)
+          git -c core.quotePath=false diff --no-color --unified=100000 "$BASE" HEAD > change.diff
+          [ -s change.diff ] || { echo "Nothing changed"; exit 0; }
+          status=$(curl -sS --compressed --retry 2 --retry-all-errors --max-time 120 \
+            --data-binary @change.diff -o report.json -w '%{http_code}' "$URL/diff")
+          [ "$status" = 200 ] || { echo "::error title=lint4::HTTP $status $(cat report.json)"; exit 1; }
+          jq -r '.findings[] | "::\({"no-go":"error","warning":"warning"}[.severity] // "notice") file=\(.path),line=\(.line),col=\(.column),title=\(.rule)::\(.why). \(.fix)"' report.json
+          jq -r '.errors[] | "::error file=\(.path),title=lint4::\(.message)"' report.json
+          outcome=$(jq -r .outcome report.json)
+          echo "lint4: $outcome"
+          [ "$outcome" = passed ]
