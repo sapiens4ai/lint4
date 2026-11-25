@@ -5,12 +5,8 @@ open Linter
 
 def usage : String := "usage: linter check --archive FILE.zip | linter selftest"
 
-def checkedFiles (files : List SourceFile) : List CheckedFile :=
-  files.filterMap fun file =>
-    (System.FilePath.mk file.path).extension.bind Language.ofExtension |>.map (⟨·, file⟩)
-
 def flagged (rule : Rule) (files : List SourceFile) : Nat :=
-  ((Verdict.report [rule] (.full (checkedFiles files))).findings.filter (·.rule == rule.id)).length
+  ((Verdict.report [rule] (.full (Intake.checkedFiles files))).findings.filter (·.rule == rule.id)).length
 
 def failures (rule : Rule) : List String :=
   rule.checks.flatMap fun check => check.examples.flatMap fun sample =>

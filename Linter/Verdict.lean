@@ -6,20 +6,22 @@ namespace Linter.Verdict
 
 open Lean Linter
 
-def findingsIn (rule : Rule) (file : CheckedFile) (tokens : List Token) : List Finding :=
+def findingsIn (files : List Match.LexedFile) (rule : Rule) : List Finding :=
   rule.checks.flatMap fun check =>
-    (Match.fileHits check.detector file.language tokens).map fun (severity, hit) =>
-      { rule := rule.id, severity, path := file.source.path, line := hit.start.line,
-        column := hit.start.column, span := hit.span, snippet := hit.snippet, why := rule.why, fix := rule.fix }
+    (Match.detectorHits check.detector files).map fun placed =>
+      { rule := rule.id, severity := placed.severity, path := placed.path, line := placed.hit.start.line,
+        column := placed.hit.start.column, span := placed.hit.span, snippet := placed.hit.snippet, why := rule.why, fix := rule.fix }
 
-def examine (rules : List Rule) (file : CheckedFile) : Except FileError (List Finding) :=
+def lexed (file : CheckedFile) : Except FileError Match.LexedFile :=
   match lexFile file.language file.source.code with
-  | .ok tokens => .ok (rules.flatMap (findingsIn · file tokens.toList))
+  | .ok tokens => .ok ⟨file, tokens.toList⟩
   | .error problem =>
     .error ⟨file.source.path, s!"{problem.position.line}:{problem.position.column}: {problem.message}"⟩
 
 def before (a b : Finding) : Bool :=
-  a.path < b.path || (a.path == b.path && (a.line < b.line || (a.line == b.line && a.column < b.column)))
+  if a.path != b.path then a.path < b.path
+  else if a.line != b.line then a.line < b.line
+  else a.column < b.column
 
 def outcome (findings : List Finding) (errors : List FileError) : Outcome :=
   if findings.any (·.severity == .noGo) then .blocked
@@ -28,8 +30,9 @@ def outcome (findings : List Finding) (errors : List FileError) : Outcome :=
 
 def report (rules : List Rule) : Submission → Report
   | .full files =>
-    let results := files.map (examine rules)
-    let findings := (results.flatMap fun | .ok found => found | .error _ => []).toArray.qsort before |>.toList
+    let results := files.map lexed
+    let readable := results.flatMap fun | .ok file => [file] | .error _ => []
+    let findings := (rules.flatMap (findingsIn readable)).toArray.qsort before |>.toList
     let errors := results.flatMap fun | .ok _ => [] | .error problem => [problem]
     let checked := Language.all.map fun language => (language, (files.filter (·.language == language)).length)
     { mode := .full, outcome := outcome findings errors, checked, findings, errors }

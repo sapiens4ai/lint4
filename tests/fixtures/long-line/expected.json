@@ -1,0 +1,41 @@
+{
+  "checked": {
+    "haskell": 1,
+    "javascript": 0,
+    "lean": 0,
+    "purescript": 0
+  },
+  "errors": [],
+  "findings": [
+    {
+      "column": 1,
+      "fix": "Split the line into named steps or wrap it",
+      "line": 3,
+      "path": "Main.hs",
+      "rule": "style/long-line",
+      "severity": "warning",
+      "snippet": "181 characters",
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "why": "A long line hides logic past the edge of the screen and in review diffs"
+    },
+    {
+      "column": 1,
+      "fix": "Split the line into named steps or wrap it",
+      "line": 4,
+      "path": "Main.hs",
+      "rule": "style/long-line",
+      "severity": "no-go",
+      "snippet": "271 characters",
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "why": "A long line hides logic past the edge of the screen and in review diffs"
+    }
+  ],
+  "mode": "full",
+  "outcome": "blocked"
+}
