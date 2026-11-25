@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: linter checks a unified diff or a zip archive sent over HTTPS
+Resources:
+  Network:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.4.0.0/16
+  Isolated:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Network
+      CidrBlock: 10.4.1.0/24
+  NoRoute:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref Network
+      GroupDescription: linter runs without network access
+  Linter:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 30
+      FunctionUrlConfig:
+        AuthType: NONE
+      VpcConfig:
+        SubnetIds: [!Ref Isolated]
+        SecurityGroupIds: [!Ref NoRoute]
+    Metadata:
+      DockerContext: ..
+      Dockerfile: service/Dockerfile
+Outputs:
+  Url:
+    Value: !GetAtt LinterUrl.FunctionUrl

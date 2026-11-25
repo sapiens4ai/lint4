@@ -1,0 +1,43 @@
+#!/bin/bash
+set -uo pipefail
+export HOME=/tmp
+api="http://$AWS_LAMBDA_RUNTIME_API/2018-06-01/runtime/invocation"
+
+message() { jq -n -c --arg error "$1" '{error: $error}' > body; }
+
+lint() {
+  timeout "$LINTER_TIMEOUT" linter check "$@" > body 2> stderr
+  case $? in
+    0 | 1) status=200; [[ -s body ]] || { status=500; message "$(tail -c 2000 stderr)"; } ;;
+    2) status=200; [[ -s body ]] || { status=400; message "$(tail -c 2000 stderr)"; } ;;
+    124) status=504; message "check timed out after ${LINTER_TIMEOUT}s" ;;
+    *) status=500; message "$(tail -c 2000 stderr)" ;;
+  esac
+}
+
+check() {
+  status=400
+  jq -e 'if .isBase64Encoded then .body | @base64d else .body end | fromjson | objects' event > request.json 2> /dev/null ||
+    { message 'body must be JSON {"diff": "..."} or {"archive": "<base64 zip>", "full": true}'; return; }
+  if jq -e '.full == true' request.json > /dev/null; then
+    jq -e -j '.archive | strings' request.json 2> /dev/null | base64 -d > source.zip 2> /dev/null && [[ -s source.zip ]] ||
+      { message "archive must be a base64 zip"; return; }
+    lint --archive source.zip
+  elif jq -e '.diff | strings' request.json > /dev/null; then
+    jq -j '.diff' request.json > changes.diff
+    lint --diff - < changes.diff
+  else
+    message 'pass {"diff": "..."} or {"archive": "<base64 zip>", "full": true}'
+  fi
+}
+
+while true; do
+  work=$(mktemp -d) && cd "$work"
+  curl -sS -D headers -o event "$api/next"
+  id=$(tr -d '\r' < headers | awk -F': ' 'tolower($1) == "lambda-runtime-aws-request-id" {print $2}')
+  check
+  jq -n --argjson status "$status" --rawfile body body \
+    '{statusCode: $status, headers: {"content-type": "application/json"}, body: $body}' |
+    curl -sS -X POST "$api/$id/response" --data-binary @- > /dev/null
+  cd / && rm -rf "$work"
+done
