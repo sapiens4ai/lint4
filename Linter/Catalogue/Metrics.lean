@@ -37,16 +37,6 @@ def largeDeclaration : Rule where
       examples := [{ bad := [⟨"Bad.hs", "total = " ++ " + ".intercalate (List.replicate 160 "1") ++ "\n"⟩],
                      good := [⟨"Good.hs", "total = " ++ " + ".intercalate (List.replicate 20 "1") ++ "\n"⟩] }] }]
 
-def importShare : Rule where
-  id := ⟨.style, "import-share"⟩
-  why := "A module that is mostly imports glues too many concerns together"
-  fix := "Move the code into the modules it depends on or split the module"
-  checks := [
-    { detector := .fixed .couldBeBetter (.importShare [.purescript] (.word .identifier "import") 10)
-      examples := [{ bad := [⟨"Bad.purs", "module Bad where\nimport Prelude\nimport Data.Maybe\nx = 1\n"⟩],
-                     good := [⟨"Good.purs", "module Good where\nimport Prelude\n" ++ "\n".intercalate
-                       ((List.range 12).map fun index => s!"x{index} = {index}") ++ "\n"⟩] }] }]
-
 def constant : Rule where
   id := ⟨.style, "constant"⟩
   why := "The same magic number in many modules drifts apart when one copy changes"
@@ -68,6 +58,6 @@ def duplicate : Rule where
                      good := [⟨"A.hs", "double xs = map (\\x -> x * 2 + 1) (filter even xs)\nmain = print (double [1, 2, 3, 4])\n"⟩,
                               ⟨"B.hs", "triple xs = map (\\x -> x * 3 + 1) (filter odd xs)\nmain = print (double [1, 2, 3, 4])\n"⟩] }] }]
 
-def rules : List Rule := [longLine, denseLine, largeDeclaration, importShare, constant, duplicate]
+def rules : List Rule := [longLine, denseLine, largeDeclaration, constant, duplicate]
 
 end Linter.Catalogue.Metrics

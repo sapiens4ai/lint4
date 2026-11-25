@@ -191,15 +191,6 @@ def largeDeclarations (limit : Nat) (file : LexedFile) : List Hit :=
       (hit group).map fun found => { found with snippet := s!"{group.length} tokens: " ++ " ".intercalate ((group.take 6).map (·.text)) }
     else none
 
-def heavyImports (header : TokenShape) (percent : Nat) (file : LexedFile) : List Hit :=
-  let filled := ((sourceLines file).filter fun text => !text.all Char.isWhitespace).length
-  let imports := ((code file.tokens).filter fun token => startsDeclaration token && fits header token).map (·.start.line)
-  match imports.head?, imports.getLast? with
-  | some first, some last =>
-    if imports.length * 100 > percent * filled then [⟨⟨first, 1⟩, ⟨first, last⟩, s!"{imports.length} of {filled} lines are imports"⟩]
-    else []
-  | _, _ => []
-
 def owners (entries : List (String × String)) : Std.HashMap String (List String) :=
   entries.foldl (init := {}) fun map (key, path) =>
     let known := map.getD key []
@@ -262,13 +253,12 @@ def matcherHits (codebase : Codebase) : Matcher → List LexedFile → List (Str
   | .tokens languages region pieces, files => eachFile languages files fun file => tokenHits region pieces file.tokens
   | .lineDensity languages shapes atLeast, files => eachFile languages files (denseLines shapes atLeast)
   | .declarationTokens languages limit, files => eachFile languages files (largeDeclarations limit)
-  | .importShare languages header percent, files => eachFile languages files (heavyImports header percent)
   | .repeatedLiteral languages minModules minLength ignored, files => repeated minModules minLength ignored (within languages files)
   | .duplicateBody languages minTokens ignored, files => duplicates minTokens ignored (within languages files)
   | .ffiPairing foreign exempt, files => unpaired foreign exempt codebase files
 
 def fileScoped : Matcher → Bool
-  | .tokens .. | .lineDensity .. | .declarationTokens .. | .importShare .. => true
+  | .tokens .. | .lineDensity .. | .declarationTokens .. => true
   | .repeatedLiteral .. | .duplicateBody .. | .ffiPairing .. => false
 
 def runsIn : Mode → Detector → Bool

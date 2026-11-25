@@ -1,1 +1,0 @@
-setTimeout(f, 0);

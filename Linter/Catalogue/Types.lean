@@ -17,6 +17,10 @@ def haskellish : List Language := [.haskell, .purescript]
 
 def nonEmptyText : TokenShape := .except (.kind .text) (.word .text "\"\"")
 
+def platformNames : List String := ["mingw32", "darwin", "linux", "freebsd", "openbsd", "netbsd", "solaris", "windows"]
+
+def wordLiteral : TokenShape := platformNames.foldl (fun shape name => .except shape (.word .text s!"\"{name}\"")) nonEmptyText
+
 def textTypes : Piece := segments ["String", "Text"]
 
 def flagTypes : Piece := segments ["Bool", "Boolean"]
@@ -29,10 +33,10 @@ def wordAsType : Rule where
   why := "Comparing against a string literal uses a word where a type belongs"
   fix := "Introduce a sum type and match on its constructors"
   checks := [
-    { detector := .fixed .noGo (.tokens haskellish .code [.anyOf [.word .symbol "==", .word .symbol "/="], .exact nonEmptyText])
+    { detector := .fixed .noGo (.tokens haskellish .code [.anyOf [.word .symbol "==", .word .symbol "/="], .exact wordLiteral])
       examples := [{ bad := [⟨"Bad.hs", "isAdmin r = role r == \"admin\"\n"⟩, ⟨"Bad.purs", "isOpen s = s /= \"closed\"\n"⟩],
                      good := [⟨"Good.hs", "label = \"role == \\\"admin\\\"\"\nsame a b = a == b\nlimit n = n == 3\n" ++
-                       "blank s = s == \"\" || s /= \"\"\n"⟩] }] },
+                       "blank s = s == \"\" || s /= \"\"\n" ++ "windows = os == \"mingw32\"\n"⟩] }] },
     { detector := .fixed .noGo (.tokens haskellish .code [.exact (.segment "Just"), .exact (.kind .text)])
       examples := [{ bad := [⟨"Bad.hs", "pick m = m == Just \"admin\"\n"⟩],
                      good := [⟨"Good.hs", "import Data.Maybe (Just)\nwrap = Just 3\nlabel = \"Just \\\"x\\\"\"\n"⟩] }] }]
