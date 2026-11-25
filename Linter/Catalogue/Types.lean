@@ -31,7 +31,8 @@ def wordAsType : Rule where
   checks := [
     { detector := .fixed .noGo (.tokens haskellish .code [.anyOf [.word .symbol "==", .word .symbol "/="], .exact nonEmptyText])
       examples := [{ bad := [⟨"Bad.hs", "isAdmin r = role r == \"admin\"\n"⟩, ⟨"Bad.purs", "isOpen s = s /= \"closed\"\n"⟩],
-                     good := [⟨"Good.hs", "label = \"role == \\\"admin\\\"\"\nsame a b = a == b\nlimit n = n == 3\nblank s = s == \"\" || s /= \"\"\n"⟩] }] },
+                     good := [⟨"Good.hs", "label = \"role == \\\"admin\\\"\"\nsame a b = a == b\nlimit n = n == 3\n" ++
+                       "blank s = s == \"\" || s /= \"\"\n"⟩] }] },
     { detector := .fixed .noGo (.tokens haskellish .code [.exact (.segment "Just"), .exact (.kind .text)])
       examples := [{ bad := [⟨"Bad.hs", "pick m = m == Just \"admin\"\n"⟩],
                      good := [⟨"Good.hs", "import Data.Maybe (Just)\nwrap = Just 3\nlabel = \"Just \\\"x\\\"\"\n"⟩] }] }]
