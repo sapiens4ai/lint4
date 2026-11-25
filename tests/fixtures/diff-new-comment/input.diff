@@ -1,0 +1,51 @@
+diff --git a/Main.hs b/Main.hs
+index 1111111..2222222 100644
+--- a/Main.hs
++++ b/Main.hs
+@@ -1,4 +1,5 @@
+ module Main where
+
+ -- legacy note
+-main = pure ()
++main = pure () -- new note
++helper = 1
+diff --git a/Old.hs b/Old.hs
+deleted file mode 100644
+index 3333333..0000000
+--- a/Old.hs
++++ /dev/null
+@@ -1,2 +0,0 @@
+-module Old where
+-old = 1 -- removed note
+diff --git a/src/Ffi.purs b/src/Ffi.purs
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/src/Ffi.purs
+@@ -0,0 +1,3 @@
++module Ffi where
++
++foreign import shout :: String -> String
+diff --git a/src/Ffi.js b/src/Ffi.js
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/src/Ffi.js
+@@ -0,0 +1 @@
++export const shout = (text) => text;
+diff --git a/src/Lone.js b/src/Lone.js
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/src/Lone.js
+@@ -0,0 +1 @@
++export const lone = 1;
+diff --git a/src/Bare.purs b/src/Bare.purs
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/src/Bare.purs
+@@ -0,0 +1,3 @@
++module Bare where
++
++foreign import whisper :: String -> String

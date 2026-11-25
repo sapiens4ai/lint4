@@ -127,8 +127,13 @@ structure CheckedFile where
   language : Language
   source : SourceFile
 
+structure AddedLines where
+  path : String
+  lines : List Nat
+
 inductive Submission where
   | full (files : List CheckedFile)
+  | diff (files : List CheckedFile) (added : List AddedLines)
 
 inductive Mode where
   | full | diff

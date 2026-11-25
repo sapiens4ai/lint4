@@ -244,6 +244,16 @@ def matcherHits : Matcher → List LexedFile → List (String × Hit)
   | .duplicateBody languages minTokens ignored, files => duplicates minTokens ignored (within languages files)
   | .ffiPairing, files => unpaired files
 
+def fileScoped : Matcher → Bool
+  | .tokens .. | .lineDensity .. | .declarationTokens .. | .importShare .. => true
+  | .repeatedLiteral .. | .duplicateBody .. | .ffiPairing => false
+
+def runsIn : Mode → Detector → Bool
+  | .full, .fixed _ _ => true
+  | .full, .lineLength _ _ => true
+  | .diff, .fixed _ matcher => fileScoped matcher
+  | .diff, .lineLength _ _ => true
+
 def detectorHits : Detector → List LexedFile → List Placed
   | .fixed severity matcher, files => (matcherHits matcher files).map fun (path, found) => ⟨severity, path, found⟩
   | .lineLength languages tiers, files => (within languages files).flatMap (longLines tiers)
