@@ -83,6 +83,7 @@ inductive Piece where
   | many (shape : TokenShape)
   | notBefore (shapes : List TokenShape)
   | notAfter (shapes : List TokenShape)
+  | sameLine
   | gap (limit : Nat)
   | skipBalanced
 

@@ -94,6 +94,8 @@ def spans (previous : Option Token) : Piece → List Token → List Nat
   | .notBefore _, [] => [0]
   | .notAfter options, token :: _ => if (onLine previous token).any fun before => options.any (fits · before) then [] else [0]
   | .notAfter _, [] => [0]
+  | .sameLine, token :: _ => if (onLine previous token).isSome then [0] else []
+  | .sameLine, [] => []
   | .gap limit, tokens => List.range (reach limit 0 tokens + 1)
   | .skipBalanced, token :: rest =>
     match opening token with
