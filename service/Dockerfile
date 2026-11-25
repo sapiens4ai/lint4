@@ -13,5 +13,5 @@ FROM public.ecr.aws/lambda/provided:al2023
 RUN dnf install -y jq unzip gzip && dnf clean all
 COPY --from=build /src/.lake/build/bin/linter /usr/local/bin/linter
 COPY service/bootstrap ${LAMBDA_RUNTIME_DIR}/bootstrap
-ENV LINTER_TIMEOUT=25
+ENV LINTER_TIMEOUT=25 LEAN_STACK_SIZE_KB=8192
 CMD ["linter"]

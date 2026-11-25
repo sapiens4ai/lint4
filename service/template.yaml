@@ -21,7 +21,7 @@ Resources:
     Properties:
       PackageType: Image
       Architectures: [arm64]
-      MemorySize: 2048
+      MemorySize: 1024
       Timeout: 30
       FunctionUrlConfig:
         AuthType: NONE
