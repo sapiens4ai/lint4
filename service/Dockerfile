@@ -4,7 +4,8 @@ ENV ELAN_HOME=/opt/elan PATH=/opt/elan/bin:$PATH
 WORKDIR /src
 COPY lean-toolchain ./
 RUN curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | \
-      sh -s -- -y --no-modify-path --default-toolchain "$(cat lean-toolchain)"
+      sh -s -- -y --no-modify-path --default-toolchain "$(cat lean-toolchain)" && \
+    elan toolchain install "$(cat lean-toolchain)"
 COPY lakefile.toml lake-manifest.json Main.lean Linter.lean ./
 COPY Linter Linter
 RUN lake build linter
