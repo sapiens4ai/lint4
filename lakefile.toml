@@ -1,0 +1,9 @@
+name = "linter"
+defaultTargets = ["linter"]
+
+[[lean_lib]]
+name = "Linter"
+
+[[lean_exe]]
+name = "linter"
+root = "Main"

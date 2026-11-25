@@ -1,0 +1,5 @@
+{"mode":"full","outcome":"blocked","checked":{"haskell":1,"purescript":0,"javascript":0,"lean":0},
+ "findings":[{"rule":"style/comment","severity":"no-go","path":"Main.hs","line":6,"column":16,
+   "span":{"first":6,"last":6},"snippet":"-- done",
+   "why":"Comments are banned: names and types carry the meaning","fix":"Delete the comment and make the code say it"}],
+ "errors":[]}
