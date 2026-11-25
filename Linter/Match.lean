@@ -33,15 +33,6 @@ def fits : TokenShape → Token → Bool
   | .suffix ending, token => token.kind == .identifier && (lastSegment token.text).endsWith ending
   | .except shape excluded, token => fits shape token && !fits excluded token
 
-def shapes : Piece → List TokenShape
-  | .exact shape => [shape]
-  | .anyOf options => options
-  | .lineStart shape => [shape]
-  | .many shape => [shape]
-  | .notBefore options => options
-  | .gap _ => []
-  | .skipBalanced => []
-
 def opening (token : Token) : Option String :=
   if token.kind != .symbol then none
   else if token.text == "(" then some ")"
@@ -66,16 +57,8 @@ def hidden : TokenKind → Bool
   | .comment | .pragma => true
   | .identifier | .symbol | .number | .text | .character => false
 
-def wantsHidden : TokenShape → Bool
-  | .kind kind => hidden kind
-  | .word kind _ => hidden kind
-  | .containing kind _ => hidden kind
-  | .segment _ => false
-  | .suffix _ => false
-  | .except shape _ => wantsHidden shape
-
-def wantsComments (pieces : List Piece) : Bool :=
-  pieces.any fun piece => (shapes piece).any wantsHidden
+def code (tokens : List Token) : List Token :=
+  tokens.filter fun token => !hidden token.kind
 
 def startsDeclaration (token : Token) : Bool := token.start.column == 1
 
@@ -155,8 +138,9 @@ def outside (header : TokenShape) (tokens : List Token) : List Token :=
   kept.reverse
 
 def visible : Region → List Token → List Token
-  | .anywhere, tokens => tokens
-  | .outside header, tokens => outside header tokens
+  | .hidden, tokens => tokens
+  | .anywhere, tokens => code tokens
+  | .outside header, tokens => outside header (code tokens)
 
 def hit (matched : List Token) : Option Hit :=
   match matched.head?, matched.getLast? with
@@ -164,12 +148,8 @@ def hit (matched : List Token) : Option Hit :=
     some ⟨first.start, ⟨first.start.line, last.stop.line⟩, " ".intercalate (matched.map (·.text))⟩
   | _, _ => none
 
-def code (tokens : List Token) : List Token :=
-  tokens.filter fun token => !hidden token.kind
-
 def tokenHits (region : Region) (pieces : List Piece) (tokens : List Token) : List Hit :=
-  let stream := if wantsComments pieces then tokens else code tokens
-  (scan pieces (visible region stream)).filterMap hit
+  (scan pieces (visible region tokens)).filterMap hit
 
 def withoutReturn (text : String) : String :=
   if text.endsWith "\r" then String.ofList text.toList.dropLast else text
@@ -191,13 +171,7 @@ def longLines (tiers : List Tier) (file : LexedFile) : List Placed :=
       ⟨tier.severity, file.file.source.path, ⟨⟨index + 1, 1⟩, ⟨index + 1, index + 1⟩, shortened text.trimAscii.toString⟩⟩
 
 def byLine (tokens : List Token) : List (List Token) :=
-  let groups := tokens.foldl (init := []) fun groups token =>
-    match groups with
-    | (first :: others) :: rest =>
-      if first.start.line == token.start.line then (token :: first :: others) :: rest else [token] :: groups
-    | [] :: rest => [token] :: rest
-    | [] => [[token]]
-  (groups.map List.reverse).reverse
+  tokens.splitBy fun a b => a.start.line == b.start.line
 
 def denseLines (shapes : List TokenShape) (atLeast : Nat) (file : LexedFile) : List Hit :=
   let lines := (sourceLines file).toArray
@@ -209,12 +183,7 @@ def denseLines (shapes : List TokenShape) (atLeast : Nat) (file : LexedFile) : L
     | none => none
 
 def declarations (tokens : List Token) : List (List Token) :=
-  let groups := tokens.foldl (init := []) fun groups token =>
-    if startsDeclaration token then [token] :: groups
-    else match groups with
-      | current :: rest => (token :: current) :: rest
-      | [] => [[token]]
-  (groups.map List.reverse).reverse
+  tokens.splitBy fun _ token => !startsDeclaration token
 
 def largeDeclarations (limit : Nat) (file : LexedFile) : List Hit :=
   (declarations (code file.tokens)).filterMap fun group =>

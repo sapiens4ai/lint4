@@ -85,6 +85,7 @@ inductive Piece where
   | skipBalanced
 
 inductive Region where
+  | hidden
   | anywhere
   | outside (header : TokenShape)
 

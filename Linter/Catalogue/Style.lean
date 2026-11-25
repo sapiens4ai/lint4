@@ -15,13 +15,13 @@ def comment : Rule where
   why := "Comments are banned: names and types carry the meaning"
   fix := "Delete the comment and make the code say it"
   checks := [
-    { detector := .fixed .noGo (.tokens [.haskell, .purescript] .anywhere [.exact (.kind .comment)])
+    { detector := .fixed .noGo (.tokens [.haskell, .purescript] .hidden [.exact (.kind .comment)])
       examples := [{ bad := [⟨"Bad.hs", "main = pure () -- done\n"⟩],
                      good := [⟨"Good.hs", "{-# LANGUAGE Strict #-}\nflag = \"--verbose\"\nx --> y = x\n"⟩] }] },
-    { detector := .fixed .noGo (.tokens [.lean] .anywhere [.exact (.kind .comment)])
+    { detector := .fixed .noGo (.tokens [.lean] .hidden [.exact (.kind .comment)])
       examples := [{ bad := [⟨"Bad.lean", "/-- doc -/\ndef x := 1\n"⟩],
                      good := [⟨"Good.lean", "def flag := \"-- not a comment\"\n"⟩] }] },
-    { detector := .fixed .noGo (.tokens [.javascript] .anywhere [.exact (.kind .comment)])
+    { detector := .fixed .noGo (.tokens [.javascript] .hidden [.exact (.kind .comment)])
       examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩, ⟨"Bad.js", "export const done = 1; // done\n"⟩,
                              ⟨"Block.purs", "module Block where\n"⟩, ⟨"Block.js", "/* helper */\nexport const helper = 2;\n"⟩],
                      good := [⟨"Good.purs", "module Good where\n"⟩,

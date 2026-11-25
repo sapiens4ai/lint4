@@ -107,7 +107,7 @@ def warningsOff : Rule where
   why := "A disabled warning hides the defect it was written to catch"
   fix := "Remove the flag that disables the warning and fix the code it reports"
   checks := [
-    { detector := .fixed .noGo (.tokens [.haskell] .anywhere [.anyOf (silencingFlags.map (.containing .pragma ·))])
+    { detector := .fixed .noGo (.tokens [.haskell] .hidden [.anyOf (silencingFlags.map (.containing .pragma ·))])
       examples := [{ bad := [⟨"Bad.hs", "{-# OPTIONS_GHC -Wno-unused-imports #-}\nmodule Bad where\n"⟩,
                              ⟨"Quiet.hs", "{-# OPTIONS_GHC -w #-}\nmodule Quiet where\n"⟩,
                              ⟨"Tab.hs", "{-# OPTIONS_GHC\t-w #-}\nmodule Tab where\n"⟩,

@@ -60,11 +60,11 @@ def relative (root path : FilePath) : String :=
 
 def sibling (path extension : String) : String := ((System.FilePath.mk path).withExtension extension).toString
 
-def kindOf (foreign : Foreign) (paths : List String) (path : String) : Option Kind :=
+def kindOf (foreign : Foreign) (hosted : String → Bool) (path : String) : Option Kind :=
   match (System.FilePath.mk path).extension with
   | some extension =>
     if extension == foreign.script then
-      if paths.contains (sibling path foreign.host) then some (.source foreign.language) else some .orphan
+      if hosted (sibling path foreign.host) then some (.source foreign.language) else some .orphan
     else (Language.ofExtension extension).map .source
   | none => none
 
@@ -88,7 +88,7 @@ def pairedHosts (foreign : Foreign) (paths : List String) : List String :=
 
 def discover (policy : Policy) (files : List SourceFile) : Codebase :=
   let paths := files.map (·.path)
-  ⟨files.filterMap fun file => (kindOf policy.foreign paths file.path).bind (place policy · file), pairedHosts policy.foreign paths⟩
+  ⟨files.filterMap fun file => (kindOf policy.foreign paths.contains file.path).bind (place policy · file), pairedHosts policy.foreign paths⟩
 
 def decoded (bytes : ByteArray) : Except String String :=
   match String.fromUTF8? bytes with
@@ -102,7 +102,7 @@ def readSource (root path : FilePath) : IO (Except String String) := do
 
 def found (policy : Policy) (root : FilePath) (names : List String) (path : FilePath) : IO (List Discovered) := do
   let name := relative root path
-  match kindOf policy.foreign names name with
+  match kindOf policy.foreign names.contains name with
   | none => pure []
   | some kind =>
     match ← readSource root path, kind with
@@ -131,18 +131,13 @@ def changesIn (text : String) : Except IntakeError (List Changed) := do
 def vendoredPath (policy : Policy) (path : String) : Bool :=
   (System.FilePath.mk path).components.any policy.vendored.contains
 
-def diffKind (foreign : Foreign) (path : String) : Option Kind :=
-  match (System.FilePath.mk path).extension with
-  | some extension => if extension == foreign.script then some (.source foreign.language) else (Language.ofExtension extension).map .source
-  | none => none
-
 def rebuild (policy : Policy) (changes : List Changed) : Submission :=
   let sources := changes.filterMap fun changed =>
     changed.path.bind fun path =>
       if changed.hunks == 0 || vendoredPath policy path then none
       else some (SourceFile.mk path (String.join (changed.lines.toList.map (· ++ "\n"))), changed.added.toList)
   let files := sources.flatMap fun (source, _) =>
-    match (diffKind policy.foreign source.path).bind (place policy · source) with
+    match (kindOf policy.foreign (fun _ => true) source.path).bind (place policy · source) with
     | some (.checked file) => [file]
     | some (.unreadable _ _) | some (.orphan _) | none => []
   .diff files (sources.map fun (source, lines) => AddedLines.mk source.path lines)

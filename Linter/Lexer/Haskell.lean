@@ -4,18 +4,7 @@ namespace Linter.Lexer.Haskell
 
 open Linter Linter.Lexer
 
-def isSymbol (c : Char) : Bool := "!#$%&*+./<=>?@\\^|-~:".toList.contains c
-
-def isNameStart (c : Char) : Bool := c.isAlpha || c == '_'
-
 def isNameChar (c : Char) : Bool := c.isAlphanum || c == '_' || c == '\''
-
-def nested : Nat → List Char → List Char → Option (List Char × List Char)
-  | depth, acc, '{' :: '-' :: rest => nested (depth + 1) ('-' :: '{' :: acc) rest
-  | 0, acc, '-' :: '}' :: rest => some (('}' :: '-' :: acc).reverse, rest)
-  | depth + 1, acc, '-' :: '}' :: rest => nested depth ('}' :: '-' :: acc) rest
-  | depth, acc, c :: rest => nested depth (c :: acc) rest
-  | _, _, [] => none
 
 def pragma : List Char → List Char → Option (List Char × List Char)
   | acc, '#' :: '-' :: '}' :: rest => some (('}' :: '-' :: '#' :: acc).reverse, rest)
@@ -40,17 +29,14 @@ def character : List Char → Option (List Char × List Char)
   | c :: '\'' :: rest => some (['\'', c, '\''], rest)
   | _ => none
 
-def name : Nat → List Char → List Char × List Char
-  | 0, chars => ([], chars)
-  | fuel + 1, chars =>
+def name : Nat → List Char → List Char → List Char × List Char
+  | fuel, taken, chars =>
     let (word, rest) := chars.span isNameChar
-    match word.head?, rest with
-    | some first, '.' :: next :: more =>
-      if first.isUpper && isNameStart next then
-        let (tail, after) := name fuel (next :: more)
-        (word ++ '.' :: tail, after)
-      else (word, rest)
-    | _, _ => (word, rest)
+    let taken := word.reverse ++ taken
+    match fuel, word.head?, rest with
+    | fuel + 1, some first, '.' :: next :: more =>
+      if first.isUpper && isNameStart next then name fuel ('.' :: taken) (next :: more) else (taken.reverse, rest)
+    | _, _, _ => (taken.reverse, rest)
 
 def lex : Nat → Position → Array Token → List Char → Except LexError (Array Token)
   | 0, position, _, _ => .error ⟨position, "input too long"⟩
@@ -65,7 +51,7 @@ def lex : Nat → Position → Array Token → List Char → Except LexError (Ar
       | some (taken, after) => emit .pragma taken after
       | none => fail "unterminated pragma"
     | '{' :: '-' :: more =>
-      match nested 0 ['-', '{'] more with
+      match nested '{' '}' 0 ['-', '{'] more with
       | some (taken, after) => emit .comment taken after
       | none => fail "unterminated block comment"
     | '-' :: '-' :: _ =>
@@ -90,10 +76,10 @@ def lex : Nat → Position → Array Token → List Char → Except LexError (Ar
     | _ =>
       if c.isWhitespace then lex fuel (step position c) tokens rest
       else if isNameStart c then
-        let (taken, after) := name (fuel + 1) chars
+        let (taken, after) := name (fuel + 1) [] chars
         emit .identifier taken after
       else if c.isDigit then
-        let (taken, after) := number chars
+        let (taken, after) := number [] chars
         emit .number taken after
       else if isBracket c then emit .symbol [c] rest
       else if isSymbol c then
