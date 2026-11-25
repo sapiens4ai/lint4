@@ -79,7 +79,24 @@ def swallowedException : Rule where
     { detector := .fixed .noGo (.tokens [.haskell] .code
         (lambdaOpen ++ [segments ["SomeException"], wildcard] ++ symbols [")", "->"] ++ [returns]))
       examples := [{ bad := [⟨"Bad.hs", "save x = handle (\\(SomeException _) -> return ()) (write x)\n"⟩],
-                     good := [⟨"Good.hs", "save x = handle (\\(SomeException e) -> report e) (write x)\n"⟩] }] }]
+                     good := [⟨"Good.hs", "save x = handle (\\(SomeException e) -> report e) (write x)\n"⟩] }] },
+    { detector := .fixed .noGo (.tokens [.javascript] .code ([names .identifier ["catch"], .gap 3] ++ symbols ["{", "}"]))
+      examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩, ⟨"Bad.js", "export const load = () => {\n  try { return read(); } catch {}\n};\n"⟩,
+                             ⟨"Bound.purs", "module Bound where\n"⟩, ⟨"Bound.js", "export const load = () => {\n  try { read(); } catch (e) {\n  }\n};\n"⟩],
+                     good := [⟨"Good.purs", "module Good where\n"⟩,
+                       ⟨"Good.js", "export const load = () => {\n  try { return read(); } catch (e) { report(e); throw e; }\n};\n" ++
+                       "export const hint = \"catch {}\";\nexport const note = `catch (e) {}`;\n"⟩] }] },
+    { detector := .fixed .noGo (.tokens [.javascript] .code
+        ([names .identifier ["catch"], .gap 3, .exact (.word .symbol "{"), names .identifier ["return"],
+          .anyOf [.kind .text, .kind .number, .word .identifier "null", .word .identifier "undefined", .word .identifier "false",
+            .word .identifier "true"], .gap 1, .exact (.word .symbol "}")]))
+      examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩,
+                             ⟨"Bad.js", "export const name = (u) => {\n  try { return u.name; } catch { return ''; }\n};\n"⟩,
+                             ⟨"Null.purs", "module Null where\n"⟩,
+                             ⟨"Null.js", "export const age = (u) => {\n  try { return u.age; } catch (e) { return null }\n};\n"⟩],
+                     good := [⟨"Good.purs", "module Good where\n"⟩,
+                       ⟨"Good.js", "export const name = (u) => {\n  try { return u.name; } catch (e) { return fallback(e); }\n};\n" ++
+                       "export const hint = \"catch { return '' }\";\nexport const note = `catch (e) { return null }`;\n"⟩] }] }]
 
 def discardedResult : Rule where
   id := ⟨.errors, "discarded-result"⟩

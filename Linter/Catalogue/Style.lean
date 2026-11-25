@@ -20,7 +20,13 @@ def comment : Rule where
                      good := [⟨"Good.hs", "{-# LANGUAGE Strict #-}\nflag = \"--verbose\"\nx --> y = x\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.lean] .anywhere [.exact (.kind .comment)])
       examples := [{ bad := [⟨"Bad.lean", "/-- doc -/\ndef x := 1\n"⟩],
-                     good := [⟨"Good.lean", "def flag := \"-- not a comment\"\n"⟩] }] }]
+                     good := [⟨"Good.lean", "def flag := \"-- not a comment\"\n"⟩] }] },
+    { detector := .fixed .noGo (.tokens [.javascript] .anywhere [.exact (.kind .comment)])
+      examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩, ⟨"Bad.js", "export const done = 1; // done\n"⟩,
+                             ⟨"Block.purs", "module Block where\n"⟩, ⟨"Block.js", "/* helper */\nexport const helper = 2;\n"⟩],
+                     good := [⟨"Good.purs", "module Good where\n"⟩,
+                       ⟨"Good.js", "export const url = \"https://example.com\";\nexport const note = `// /* not a comment */`;\n" ++
+                       "export const half = 4 / 2;\n"⟩] }] }]
 
 def elseIfChain : Rule where
   id := ⟨.style, "else-if-chain"⟩
