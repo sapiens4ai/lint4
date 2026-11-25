@@ -93,12 +93,12 @@ def unprotected : Rule where
   why := "A public signature of raw String, Nat, Int or Json lets callers pass any value"
   fix := "Refine the type with a domain type or a subtype"
   checks := [
-    { detector := .fixed .noGo (.tokens [.lean] .code [.lineStart (.word .identifier "def"), .exact (.kind .identifier), .gap 16,
+    { detector := .fixed .warning (.tokens [.lean] .code [.lineStart (.word .identifier "def"), .exact (.kind .identifier), .gap 16,
         symbol ":", .gap 2, exposed])
       examples := [{ bad := [⟨"Bad.lean", "def greet (name : String) : Greeting := ⟨name⟩\n"⟩,
                              ⟨"Total.lean", "def total (xs : Orders) : Nat := xs.size\n"⟩],
                      good := [⟨"Good.lean", "private def greet (name : String) : Nat := 1\ndef label : Label := ⟨\"def x : String\"⟩\n"⟩] }] },
-    { detector := .fixed .noGo (.tokens [.lean] .code [.lineStart (.word .identifier "structure"), .exact (.kind .identifier), .gap 40,
+    { detector := .fixed .warning (.tokens [.lean] .code [.lineStart (.word .identifier "structure"), .exact (.kind .identifier), .gap 40,
         symbol ":", .gap 2, exposed])
       examples := [{ bad := [⟨"Bad.lean", "structure User where\n  id : UserId\n  name : String\n"⟩],
                      good := [⟨"Good.lean", "structure User where\n  id : UserId\n  name : Name\n  deriving Repr\n"⟩] }] }]
