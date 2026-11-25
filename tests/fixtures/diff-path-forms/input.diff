@@ -1,0 +1,37 @@
+diff --git c/A.hs i/A.hs
+index 1111111..2222222 100644
+--- c/A.hs
++++ i/A.hs
+@@ -1,1 +1,2 @@
+ module A where
++a = 1 -- mnemonic
+diff --git i/src/B.hs w/src/B.hs
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ w/src/B.hs
+@@ -0,0 +1,2 @@
++module B where
++b = 1 -- mnemonic new file
+diff --git a/C.hs a/C.hs
+index 1111111..2222222 100644
+--- a/C.hs
++++ a/C.hs
+@@ -1,1 +1,2 @@
+ module C where
++c = 1 -- no prefix
+diff --git "a/src/\303\234n\303\257code.hs" "b/src/\303\234n\303\257code.hs"
+new file mode 100644
+index 0000000..b8bc701
+--- /dev/null
++++ "b/src/\303\234n\303\257code.hs"
+@@ -0,0 +1,2 @@
++module Unicode where
++u = 1 -- octal
+diff --git "a/src/Say\"Hi\"\tX.hs" "b/src/Say\"Hi\"\tX.hs"
+index 1111111..2222222 100644
+--- "a/src/Say\"Hi\"\tX.hs"
++++ "b/src/Say\"Hi\"\tX.hs"
+@@ -1,1 +1,2 @@
+ module SayHi where
++s = 1 -- escapes

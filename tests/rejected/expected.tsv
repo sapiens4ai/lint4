@@ -1,0 +1,15 @@
+corrupt.zip	cannot unpack *corrupt.zip: *
+absolute.zip	archive entry /tmp/linter-escape.hs points outside the archive
+parent.zip	archive entry ../escape.hs points outside the archive
+nothing-to-check	nothing to check: the archive has no .hs, .purs, .lean or FFI .js files
+too-many-entries.sh	the archive has 20002 entries; the limit is 20000
+too-large-total.sh	the archive unpacks to 209000018 bytes; the limit is 200000000
+entry-too-large.sh	archive entry src/Big.hs unpacks to 25000000 bytes; the limit is 20000000
+empty.diff	the diff is empty: nothing to check
+coloured.diff	the diff contains terminal colour codes: produce it with git diff --no-color --unified=100000
+no-hunks.diff	no changed file found: send a unified diff with hunks, produced by git diff --no-color --unified=100000
+partial-context.diff	Main.hs: diff lacks full context, produce it with --unified=100000
+repeated-file.diff	malformed diff: A.hs appears more than once
+count-overflow.diff	F.hs: hunk has more lines than its header counts: -x = 1
+count-underflow.diff	diff ends inside a hunk: the hunk has fewer lines than its header counts
+count-underflow-next-file.diff	F.hs: malformed hunk line: diff --git a/G.hs b/G.hs
