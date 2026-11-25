@@ -22,6 +22,15 @@ def pragma : List Char → List Char → Option (List Char × List Char)
   | acc, c :: rest => pragma (c :: acc) rest
   | _, [] => none
 
+def string : Bool → List Char → List Char → Option (List Char × List Char)
+  | true, acc, '\\' :: rest => string false ('\\' :: acc) rest
+  | true, acc, c :: rest => if c.isWhitespace then string true (c :: acc) rest else none
+  | false, acc, '\\' :: c :: rest => string c.isWhitespace (c :: '\\' :: acc) rest
+  | false, acc, '"' :: rest => some (('"' :: acc).reverse, rest)
+  | false, _, '\n' :: _ => none
+  | false, acc, c :: rest => string false (c :: acc) rest
+  | _, _, [] => none
+
 def character : List Char → Option (List Char × List Char)
   | '\\' :: c :: rest =>
     let (body, tail) := rest.span (· != '\'')
@@ -71,7 +80,7 @@ def lex : Nat → Position → Array Token → List Char → Except LexError (Ar
           emit .comment (dashes ++ body) tail
       | [] => emit .comment dashes []
     | '"' :: more =>
-      match quoted ['"'] more with
+      match string false ['"'] more with
       | some (taken, after) => emit .text taken after
       | none => fail "unterminated string"
     | '\'' :: more =>
@@ -84,7 +93,7 @@ def lex : Nat → Position → Array Token → List Char → Except LexError (Ar
         let (taken, after) := name (fuel + 1) chars
         emit .identifier taken after
       else if c.isDigit then
-        let (taken, after) := chars.span fun d => d.isAlphanum || d == '.' || d == '_'
+        let (taken, after) := number chars
         emit .number taken after
       else if isBracket c then emit .symbol [c] rest
       else if isSymbol c then
