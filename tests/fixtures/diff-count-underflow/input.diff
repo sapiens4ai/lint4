@@ -1,0 +1,7 @@
+diff --git a/F.hs b/F.hs
+--- a/F.hs
++++ b/F.hs
+@@ -1,2 +1,3 @@
+ module F where
++x = 1
+-y = 2
