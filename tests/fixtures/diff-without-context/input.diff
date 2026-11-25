@@ -1,0 +1,9 @@
+diff --git a/Main.hs b/Main.hs
+index 1111111..2222222 100644
+--- a/Main.hs
++++ b/Main.hs
+@@ -10,3 +10,4 @@ main = pure ()
+ one = 1
+ two = 2
++three = 3 -- new
+ four = 4

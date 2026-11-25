@@ -6,8 +6,8 @@ namespace Linter.Verdict
 
 open Lean Linter
 
-def findingsIn (files : List Match.LexedFile) (rule : Rule) : List Finding :=
-  rule.checks.flatMap fun check =>
+def findingsIn (mode : Mode) (files : List Match.LexedFile) (rule : Rule) : List Finding :=
+  (rule.checks.filter (Match.runsIn mode ·.detector)).flatMap fun check =>
     (Match.detectorHits check.detector files).map fun placed =>
       { rule := rule.id, severity := placed.severity, path := placed.path, line := placed.hit.start.line,
         column := placed.hit.start.column, span := placed.hit.span, snippet := placed.hit.snippet, why := rule.why, fix := rule.fix }
@@ -28,14 +28,21 @@ def outcome (findings : List Finding) (errors : List FileError) : Outcome :=
   else if errors.isEmpty then .passed
   else .incomplete
 
+def touches (added : List AddedLines) (finding : Finding) : Bool :=
+  added.any fun entry =>
+    entry.path == finding.path && entry.lines.any fun line => finding.span.first ≤ line && line ≤ finding.span.last
+
+def assess (mode : Mode) (rules : List Rule) (files : List CheckedFile) (keep : Finding → Bool) : Report :=
+  let results := files.map lexed
+  let readable := results.flatMap fun | .ok file => [file] | .error _ => []
+  let findings := ((rules.flatMap (findingsIn mode readable)).filter keep).toArray.qsort before |>.toList
+  let errors := results.flatMap fun | .ok _ => [] | .error problem => [problem]
+  let checked := Language.all.map fun language => (language, (files.filter (·.language == language)).length)
+  { mode, outcome := outcome findings errors, checked, findings, errors }
+
 def report (rules : List Rule) : Submission → Report
-  | .full files =>
-    let results := files.map lexed
-    let readable := results.flatMap fun | .ok file => [file] | .error _ => []
-    let findings := (rules.flatMap (findingsIn readable)).toArray.qsort before |>.toList
-    let errors := results.flatMap fun | .ok _ => [] | .error problem => [problem]
-    let checked := Language.all.map fun language => (language, (files.filter (·.language == language)).length)
-    { mode := .full, outcome := outcome findings errors, checked, findings, errors }
+  | .full files => assess .full rules files fun _ => true
+  | .diff files added => assess .diff rules files (touches added)
 
 def findingJson (finding : Finding) : Json :=
   Json.mkObj [
