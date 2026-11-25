@@ -219,8 +219,41 @@ def jsonTextSearch : Rule where
       examples := [{ bad := [⟨"Bad.lean", "def ok (j : Lean.Json) : Bool := j.compress.contains \"ready\"\n"⟩],
                      good := [⟨"Good.lean", "def ok (j : Lean.Json) : Bool := j.getObjValAs? String \"status\" == .ok \"ready\"\n"⟩] }] }]
 
+def continued : Piece := .notBefore (["*>", "<*", ">>", ">>=", "<>", "<$", "$>", "<$>", "<#>", "<|>", "#"].map (.word .symbol ·))
+
+def doesNothing (nothing : List Piece) : Detector :=
+  .fixed .couldBeBetter (.tokens [.haskell, .purescript] .code ([wildcard] ++ symbols ["->"] ++ [returns] ++ nothing ++ [continued]))
+
+def noopFallback : Rule where
+  id := ⟨.errors, "noop-fallback"⟩
+  why := "A catch-all arm that does nothing silently ignores every case it was not written for"
+  fix := "Handle each remaining case, or log or return an error for the unexpected ones"
+  checks := [
+    { detector := doesNothing [names .identifier ["unit"]]
+      examples := [{ bad := [⟨"Bad.purs", "onKey key = do\n  case key of\n    Enter -> submit\n    _ -> pure unit\n  refresh\n"⟩,
+                             ⟨"Left.purs", "save result = case result of\n  Right doc -> store doc\n  Left _ -> pure unit\n"⟩],
+                     good := [⟨"Good.purs", "onKey key = case key of\n  Enter -> submit\n  Escape -> pure unit\n  _ -> pure (Left key)\n" ++
+                       "onTab tab = case tab of\n  Home -> home\n  _ -> pure unit *> log tab\nhint = \"_ -> pure unit\"\n"⟩] }] },
+    { detector := doesNothing (symbols ["(", ")"])
+      examples := [{ bad := [⟨"Bad.hs", "onKey key = case key of\n  Enter -> submit\n  _ -> return ()\nnext = 1\n"⟩],
+                     good := [⟨"Good.hs", "onKey key = case key of\n  Enter -> submit\n  Escape -> pure ()\n  _ -> pure (Just key)\n" ++
+                       "onTab tab = case tab of\n  Home -> home\n  _ -> return () >> log tab\n"⟩] }] }]
+
+def emptySentinel : Rule where
+  id := ⟨.errors, "empty-sentinel"⟩
+  why := "Comparing with the empty string treats an empty value as a stand-in for a missing one"
+  fix := "Model absence with Maybe, or parse the text into a non-empty type at the boundary"
+  checks := [
+    { detector := .fixed .couldBeBetter (.tokens [.haskell, .purescript] .code [names .symbol ["==", "/="], .exact (.word .text "\"\"")])
+      examples := [{ bad := [⟨"Bad.hs", "missing user = userName user == \"\"\n"⟩, ⟨"Bad.purs", "present s = s /= \"\"\n"⟩],
+                     good := [⟨"Good.hs", "missing user = isNothing (userName user)\nhint = \"name == \\\"\\\"\"\n" ++
+                       "same a b = a == b\nadmin r = r == \"admin\"\n"⟩] }] },
+    { detector := .fixed .couldBeBetter (.tokens [.haskell, .purescript] .code [.exact (.word .text "\"\""), names .symbol ["==", "/="]])
+      examples := [{ bad := [⟨"Bad.purs", "missing s = \"\" == s\n"⟩],
+                     good := [⟨"Good.purs", "missing s = null s\nempty = \"\"\nhint = \"\\\"\\\" == s\"\n"⟩] }] }]
+
 def rules : List Rule :=
   [emptyValue, eitherDecode, lenientAccessor, swallowedException, discardedResult, lenientDecoder, defaultOnError, swallowedThrow,
-    constantCatch, emptyOnError, errorTextSearch, jsonTextSearch]
+    constantCatch, emptyOnError, errorTextSearch, jsonTextSearch, noopFallback, emptySentinel]
 
 end Linter.Catalogue.Errors
