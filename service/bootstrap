@@ -15,20 +15,24 @@ lint() {
   esac
 }
 
+payload() {
+  if jq -e '.isBase64Encoded == true' event > /dev/null; then jq -j '.body // ""' event | base64 -d > "$1" 2> /dev/null
+  else jq -j '.body // ""' event > "$1"; fi
+}
+
 check() {
   status=400
-  jq -e 'if .isBase64Encoded then .body | @base64d else .body end | fromjson | objects' event > request.json 2> /dev/null ||
-    { message 'body must be JSON {"diff": "..."} or {"archive": "<base64 zip>", "full": true}'; return; }
-  if jq -e '.full == true' request.json > /dev/null; then
-    jq -e -j '.archive | strings' request.json 2> /dev/null | base64 -d > source.zip 2> /dev/null && [[ -s source.zip ]] ||
-      { message "archive must be a base64 zip"; return; }
-    lint --archive source.zip
-  elif jq -e '.diff | strings' request.json > /dev/null; then
-    jq -j '.diff' request.json > changes.diff
-    lint --diff - < changes.diff
-  else
-    message 'pass {"diff": "..."} or {"archive": "<base64 zip>", "full": true}'
-  fi
+  case "$(jq -r '.rawPath // "/"' event)" in
+    /diff)
+      payload changes.diff
+      [[ -s changes.diff ]] || { message "send the full-context diff file as the request body"; return; }
+      lint --diff - < changes.diff ;;
+    /full)
+      payload source.zip
+      [[ -s source.zip ]] || { message "send the zip file as the request body"; return; }
+      lint --archive source.zip ;;
+    *) message "POST /diff with a full-context diff file, or POST /full with a zip file" ;;
+  esac
 }
 
 while true; do
