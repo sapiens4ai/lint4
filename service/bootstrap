@@ -1,6 +1,7 @@
 #!/bin/bash
 set -uo pipefail
 export HOME=/tmp
+RESPONSE_LIMIT=5500000
 api="http://$AWS_LAMBDA_RUNTIME_API/2018-06-01/runtime/invocation"
 
 message() { jq -n -c --arg error "$1" '{error: $error}' > body; }
@@ -22,6 +23,10 @@ payload() {
 
 check() {
   status=400
+  allow='{}'
+  if [[ "$(jq -r '.requestContext.http.method // ""' event)" != POST ]]; then
+    status=405; allow='{"allow": "POST"}'; message "method not allowed: use POST"; return
+  fi
   case "$(jq -r '.rawPath // "/"' event)" in
     /diff)
       payload changes.diff
@@ -35,15 +40,24 @@ check() {
   esac
 }
 
+plain() {
+  jq -n --argjson status "$status" --argjson allow "$allow" --rawfile body body \
+    '{statusCode: $status, headers: ({"content-type": "application/json"} + $allow), body: $body}' > response
+}
+
 respond() {
   if jq -e '.headers["accept-encoding"] // "" | test("gzip")' event > /dev/null; then
     gzip -c body | base64 -w 0 > packed
-    jq -n --argjson status "$status" --rawfile body packed \
-      '{statusCode: $status, isBase64Encoded: true, headers: {"content-type": "application/json", "content-encoding": "gzip"}, body: $body}'
+    jq -n --argjson status "$status" --argjson allow "$allow" --rawfile body packed \
+      '{statusCode: $status, isBase64Encoded: true, headers: ({"content-type": "application/json", "content-encoding": "gzip"} + $allow), body: $body}' \
+      > response
   else
-    jq -n --argjson status "$status" --rawfile body body \
-      '{statusCode: $status, headers: {"content-type": "application/json"}, body: $body}'
-  fi | curl -sS -X POST "$api/$id/response" --data-binary @- > /dev/null
+    plain
+    if (( $(wc -c < response) > RESPONSE_LIMIT )); then
+      status=413; message "report too large; resend with Accept-Encoding: gzip"; plain
+    fi
+  fi
+  curl -sS -X POST "$api/$id/response" --data-binary @response > /dev/null
 }
 
 while true; do
