@@ -1,0 +1,83 @@
+{
+  "checked": {
+    "haskell": 2,
+    "javascript": 0,
+    "lean": 0,
+    "purescript": 0
+  },
+  "errors": [],
+  "findings": [
+    {
+      "column": 26,
+      "fix": "Read the address from configuration or the environment, without a literal default in code",
+      "line": 2,
+      "path": "Probe.hs",
+      "rule": "boundary/hardcoded-endpoint",
+      "severity": "warning",
+      "snippet": "\"https://sapiens4.aid/x\"",
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "why": "A hard-coded address ties the code to one environment and hides configuration"
+    },
+    {
+      "column": 9,
+      "fix": "Read the address from configuration or the environment, without a literal default in code",
+      "line": 4,
+      "path": "Probe.hs",
+      "rule": "boundary/hardcoded-endpoint",
+      "severity": "warning",
+      "snippet": "\"http://127.0.0.1:4174\"",
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "why": "A hard-coded address ties the code to one environment and hides configuration"
+    },
+    {
+      "column": 18,
+      "fix": "Read the address from configuration or the environment, without a literal default in code",
+      "line": 2,
+      "path": "Telemetry.hs",
+      "rule": "boundary/hardcoded-endpoint",
+      "severity": "no-go",
+      "snippet": "\"https://telemetry.sapiens4.ai\"",
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "why": "A hard-coded address ties the code to one environment and hides configuration"
+    },
+    {
+      "column": 11,
+      "fix": "Read the address from configuration or the environment, without a literal default in code",
+      "line": 3,
+      "path": "Telemetry.hs",
+      "rule": "boundary/hardcoded-endpoint",
+      "severity": "no-go",
+      "snippet": "\"remote-relay.sapiens4.ai\"",
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "why": "A hard-coded address ties the code to one environment and hides configuration"
+    },
+    {
+      "column": 39,
+      "fix": "Read the address from configuration or the environment, without a literal default in code",
+      "line": 3,
+      "path": "Telemetry.hs",
+      "rule": "boundary/hardcoded-endpoint",
+      "severity": "warning",
+      "snippet": "\"https://remote-relay.utana.group\"",
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "why": "A hard-coded address ties the code to one environment and hides configuration"
+    }
+  ],
+  "mode": "full",
+  "outcome": "blocked"
+}

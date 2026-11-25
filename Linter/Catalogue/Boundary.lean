@@ -35,6 +35,51 @@ def json : Rule where
       examples := [{ bad := [⟨"Bad.purs", "module Bad where\nimport Data.Argonaut.Core (Json)\n"⟩],
                      good := [⟨"Good.purs", "module Good where\nimport Data.Maybe (Maybe)\n"⟩] }] }]
 
-def rules : List Rule := [ffi, json]
+def ownDomains : List String := [".".intercalate ["sapiens4", "ai"]]
+
+def reservedHosts : List String := [".invalid", ".local", ".test", ".example", "example.com"]
+
+def namespaces : List String := ["http://www.w3.org/"]
+
+def hostEdges : List String := ["\"", "'", "`", " ", "/", ".", "@", "(", "="]
+
+def hostEnds : List String := ["\"", "'", "`", " ", "/", ":", "?", "#", ",", ";", ")", "]", "$", "{", "}", "\\"]
+
+def bounded (host : String) : List TokenShape :=
+  let edges := if host.startsWith "." then [""] else hostEdges
+  edges.flatMap fun edge => hostEnds.map fun ending => .containing .text (edge ++ host ++ ending)
+
+def withoutAny (shape : TokenShape) (excluded : List TokenShape) : TokenShape :=
+  excluded.foldl .except shape
+
+def ownHosts : List TokenShape := ownDomains.flatMap bounded
+
+def address : TokenShape :=
+  withoutAny (.containing .text "://") (ownHosts ++ reservedHosts.flatMap bounded ++ namespaces.map (.containing .text))
+
+def own : String := ownDomains.headD ""
+
+def hardcodedEndpoint : Rule where
+  id := ⟨.boundary, "hardcoded-endpoint"⟩
+  why := "A hard-coded address ties the code to one environment and hides configuration"
+  fix := "Read the address from configuration or the environment, without a literal default in code"
+  checks := [
+    { detector := .fixed .noGo (.tokens Language.all .anywhere [.anyOf ownHosts])
+      examples := [{ bad := [⟨"Telemetry.hs", s!"module Telemetry where\nendpoint = maybe \"https://telemetry.{own}\" id <$> lookupEnv \"ORIGIN\"\n"⟩],
+                     good := [⟨"Telemetry.hs", "module Telemetry where\nendpoint = lookupEnv \"SAPIENS_TELEMETRY_ORIGIN\"\n"⟩,
+                              ⟨"Brand.purs", s!"module Brand where\nname = \"docs.{own}d\"\n"⟩] },
+                   { bad := [⟨"Relay.purs", "module Relay where\nforeign import relay :: String\n"⟩,
+                             ⟨"Relay.js", s!"export const relay = \"remote-relay.{own}\";\n"⟩],
+                     good := [⟨"Relay.purs", "module Relay where\nforeign import relay :: String\n"⟩,
+                              ⟨"Relay.js", "export const relay = process.env.RELAY_ORIGIN;\n"⟩] }] },
+    { detector := .fixed .warning (.tokens Language.all .anywhere [.exact address])
+      examples := [{ bad := [⟨"Host.lean", "def origin (port : Nat) : String := s!\"http://127.0.0.1:{port}\"\n"⟩,
+                             ⟨"Update.hs", "module Update where\nreleases = \"https://api.github.com/repos/\"\n"⟩],
+                     good := [⟨"Svg.purs", "module Svg where\nnamespace = \"http://www.w3.org/2000/svg\"\n"⟩,
+                              ⟨"Origin.lean", "def hostile : String := \"Origin: https://untrusted.invalid\"\n"⟩,
+                              ⟨"Probe.hs", "module Probe where\nprobe = [\"https://invalid.local\", \"http://relay.test:9\"]\n"⟩,
+                              ⟨"Docs.hs", "module Docs where\ndocs = \"https://api.example.com/v1\"\n"⟩] }] }]
+
+def rules : List Rule := [ffi, json, hardcodedEndpoint]
 
 end Linter.Catalogue.Boundary
