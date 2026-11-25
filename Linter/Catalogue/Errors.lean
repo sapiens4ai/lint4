@@ -12,7 +12,7 @@ def wildcard : Piece := .exact (.word .identifier "_")
 
 def emptyList : List Piece := symbols ["[", "]"]
 
-def emptyText : Piece := .anyOf [.word .text "\"\"", .segment "jsonNull", .segment "Null", .word .identifier "mempty"]
+def emptyText : Piece := .anyOf [.word .text "\"\"", .segment "jsonNull", .word .identifier "mempty"]
 
 def returns : Piece := names .identifier ["pure", "return"]
 
@@ -25,27 +25,34 @@ def emptyValue : Rule where
   checks := [
     { detector := .fixed .noGo (.tokens [.haskell, .purescript] .code [segments ["fromMaybe", "maybe"], emptyText])
       examples := [{ bad := [⟨"Bad.hs", "label user = fromMaybe \"\" (userName user)\n"⟩, ⟨"Bad.purs", "title = maybe \"\" show\n"⟩],
-                     good := [⟨"Good.hs", "label user = fromMaybe \"anonymous\" (userName user)\nhint = \"fromMaybe \\\"\\\"\"\n"⟩] }] },
+                     good := [⟨"Good.hs", "label user = fromMaybe \"anonymous\" (userName user)\nhint = \"fromMaybe \\\"\\\"\"\n" ++
+                       "field = fromMaybe Null (lookup key object)\nshown = maybe Null toJSON value\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.haskell, .purescript] .code ([segments ["fromMaybe", "maybe"]] ++ emptyList))
       examples := [{ bad := [⟨"Bad.hs", "tags post = Maybe.fromMaybe [] (postTags post)\n"⟩],
                      good := [⟨"Good.hs", "hosts config = fromMaybe [defaultHost] (configHosts config)\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.haskell, .purescript] .code
         ([names .identifier ["Left"], wildcard] ++ symbols ["->"] ++ [emptyText]))
       examples := [{ bad := [⟨"Bad.hs", "render r = case r of\n  Left _ -> \"\"\n  Right v -> v\n"⟩],
-                     good := [⟨"Good.hs", "render r = case r of\n  Left err -> show err\n  Right v -> v\n"⟩] }] },
+                     good := [⟨"Good.hs", "render r = case r of\n  Left err -> show err\n  Right v -> v\n" ++
+                       "raw r = case r of\n  Left _ -> Null\n  Right v -> v\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.haskell, .purescript] .code
         ([names .identifier ["Left"], wildcard] ++ symbols ["->"] ++ emptyList))
       examples := [{ bad := [⟨"Bad.purs", "items r = case r of\n  Left _ -> []\n  Right xs -> xs\n"⟩],
                      good := [⟨"Good.purs", "items r = case r of\n  Left _ -> [fallbackItem]\n  Right xs -> xs\n"⟩] }] }]
+
+def jsonModules : List String := ["", "A.", "J.", "Aeson.", "JSON.", "Json.", "Data.Aeson."]
 
 def eitherDecode : Rule where
   id := ⟨.errors, "either-decode"⟩
   why := "decode returns Nothing and throws away the reason the input was rejected"
   fix := "Use eitherDecode and handle the parse error"
   checks := [
-    { detector := .fixed .noGo (.tokens [.haskell] .code [segments ["decode", "decodeStrict"]])
-      examples := [{ bad := [⟨"Bad.hs", "parse body = Aeson.decode body :: Maybe Config\n"⟩],
-                     good := [⟨"Good.hs", "import Data.Aeson (decode, eitherDecode)\nparse body = eitherDecode body\nlabel = \"decode\"\n"⟩] }] }]
+    { detector := .fixed .noGo (.tokens [.haskell] .code [names .identifier (jsonModules.flatMap fun qualifier =>
+        ["decode", "decodeStrict", "decode'", "decodeStrict'"].map (qualifier ++ ·))])
+      examples := [{ bad := [⟨"Bad.hs", "parse body = Aeson.decode body :: Maybe Config\n"⟩, ⟨"Short.hs", "parse body = A.decodeStrict body\n"⟩,
+                             ⟨"Plain.hs", "parse body = decode body :: Maybe Config\n"⟩],
+                     good := [⟨"Good.hs", "import Data.Aeson (decode, eitherDecode)\nparse body = eitherDecode body\nlabel = \"decode\"\n" ++
+                       "bytes text = B64.decode (encodeUtf8 text)\nraw text = Base64.decode text\nrows bytes = Flat.decode bytes\n"⟩] }] }]
 
 def wildcardClause : List Piece :=
   [.lineStart (.kind .identifier), .many (.word .identifier "_"), .exact (.word .symbol "=")]
@@ -82,7 +89,8 @@ def swallowedException : Rule where
                      good := [⟨"Good.hs", "save x = handle (\\(SomeException e) -> report e) (write x)\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.javascript] .code ([names .identifier ["catch"], .gap 3] ++ symbols ["{", "}"]))
       examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩, ⟨"Bad.js", "export const load = () => {\n  try { return read(); } catch {}\n};\n"⟩,
-                             ⟨"Bound.purs", "module Bound where\n"⟩, ⟨"Bound.js", "export const load = () => {\n  try { read(); } catch (e) {\n  }\n};\n"⟩],
+                             ⟨"Bound.purs", "module Bound where\n"⟩,
+                             ⟨"Bound.js", "export const load = () => {\n  try { read(); } catch (e) {\n  }\n};\n"⟩],
                      good := [⟨"Good.purs", "module Good where\n"⟩,
                        ⟨"Good.js", "export const load = () => {\n  try { return read(); } catch (e) { report(e); throw e; }\n};\n" ++
                        "export const hint = \"catch {}\";\nexport const note = `catch (e) {}`;\n"⟩] }] },
@@ -121,6 +129,9 @@ def discardedResult : Rule where
       examples := [{ bad := [⟨"Bad.hs", "main = void $ try (removeFile path)\n"⟩],
                      good := [⟨"Good.hs", "main = do\n  result <- try (removeFile path)\n  either report pure result\n  void (discard path)\n"⟩] }] }]
 
+def literalBranch : List Piece :=
+  [.exact (.kind .text)] ++ symbols ["->"] ++ [.many (.except (.kind .identifier) (.word .identifier "_"))]
+
 def lenientDecoder : Rule where
   id := ⟨.errors, "lenient-decoder"⟩
   why := "A catch-all String constructor accepts any unknown input as valid"
@@ -129,7 +140,16 @@ def lenientDecoder : Rule where
     { detector := .fixed .noGo (.tokens [.purescript] .code
         [names .symbol ["|", "="], names .identifier ["Other"], names .identifier ["String"]])
       examples := [{ bad := [⟨"Bad.purs", "data Status = Active | Paused | Other String\n"⟩],
-                     good := [⟨"Good.purs", "data Status = Active | Paused\nlabel = \"| Other String\"\nshowStatus (Other s) = s\n"⟩] }] }]
+                     good := [⟨"Good.purs", "data Status = Active | Paused\nlabel = \"| Other String\"\nshowStatus (Other s) = s\n"⟩] }] },
+    { detector := .fixed .noGo (.tokens [.purescript] .code (literalBranch ++ [wildcard] ++ symbols ["->"] ++ [names .identifier ["Right"]]))
+      examples := [{ bad := [⟨"Bad.purs", "decodeTag json = case tag of\n  \"dark\" -> Right Dark\n  _ -> Right Light\n  where tag = toString json\n"⟩],
+                     good := [⟨"Good.purs",
+                       "decodeTag json = case tag of\n  \"dark\" -> Right Dark\n  other -> Left (\"unknown theme \" <> other)\n" ++
+                       "check r = case r of\n  Left \"x\" -> Left \"x\"\n  Right _ -> Right unit\n"⟩] }] },
+    { detector := .fixed .noGo (.tokens [.purescript] .code
+        (literalBranch ++ [.skipBalanced, wildcard] ++ symbols ["->"] ++ [names .identifier ["Right"]]))
+      examples := [{ bad := [⟨"Bad.purs", "decodeTag json = case toString json of\n  \"dark\" -> Right (Theme 1)\n  _ -> Right (Theme 0)\n"⟩],
+                     good := [⟨"Good.purs", "decodeTag json = case toString json of\n  \"dark\" -> Right (Theme 1)\n  _ -> Left \"unknown\"\n"⟩] }] }]
 
 def defaultOnError : Rule where
   id := ⟨.errors, "default-on-error"⟩
