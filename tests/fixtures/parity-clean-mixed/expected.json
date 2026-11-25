@@ -1,0 +1,12 @@
+{
+  "mode": "full",
+  "outcome": "passed",
+  "checked": {
+    "haskell": 1,
+    "purescript": 1,
+    "javascript": 1,
+    "lean": 1
+  },
+  "findings": [],
+  "errors": []
+}

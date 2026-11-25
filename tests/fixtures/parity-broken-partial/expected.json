@@ -1,0 +1,41 @@
+{
+  "mode": "full",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 1,
+    "purescript": 0,
+    "javascript": 1,
+    "lean": 0
+  },
+  "findings": [
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "broken/Bad.hs",
+      "line": 1,
+      "column": 7,
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "snippet": "undefined",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "boundary/ffi",
+      "severity": "warning",
+      "path": "broken/Only.js",
+      "line": 1,
+      "column": 1,
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "snippet": "export const enabled = true;",
+      "why": "A foreign import without its JavaScript module, or JavaScript without its PureScript module, breaks the FFI boundary",
+      "fix": "Keep every foreign module as a .purs and .js pair with the same name"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,83 @@
+{
+  "mode": "full",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 0,
+    "purescript": 3,
+    "javascript": 2,
+    "lean": 0
+  },
+  "findings": [
+    {
+      "rule": "safety/timer",
+      "severity": "no-go",
+      "path": "ps/F.js",
+      "line": 2,
+      "column": 1,
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "snippet": "delay(0);",
+      "why": "A timer hides a race and stands in for a real event",
+      "fix": "Bind the work to pulse"
+    },
+    {
+      "rule": "boundary/ffi",
+      "severity": "warning",
+      "path": "ps/F.purs",
+      "line": 2,
+      "column": 1,
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "snippet": "foreign import bad",
+      "why": "A foreign import without its JavaScript module, or JavaScript without its PureScript module, breaks the FFI boundary",
+      "fix": "Keep every foreign module as a .purs and .js pair with the same name"
+    },
+    {
+      "rule": "safety/timer",
+      "severity": "no-go",
+      "path": "ps/Timers.purs",
+      "line": 6,
+      "column": 12,
+      "span": {
+        "first": 6,
+        "last": 6
+      },
+      "snippet": "delay",
+      "why": "A timer hides a race and stands in for a real event",
+      "fix": "Bind the work to pulse"
+    },
+    {
+      "rule": "types/string-record",
+      "severity": "warning",
+      "path": "ps/Types.purs",
+      "line": 4,
+      "column": 3,
+      "span": {
+        "first": 4,
+        "last": 9
+      },
+      "snippet": "{ a :: String , b :: String , c :: String , d :: String , e :: String , f :: String",
+      "why": "A record of many raw text fields carries no meaning in its types",
+      "fix": "Give the fields domain types"
+    },
+    {
+      "rule": "boundary/ffi",
+      "severity": "warning",
+      "path": "ps/scripts/run.js",
+      "line": 1,
+      "column": 1,
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "snippet": "export const x = true;",
+      "why": "A foreign import without its JavaScript module, or JavaScript without its PureScript module, breaks the FFI boundary",
+      "fix": "Keep every foreign module as a .purs and .js pair with the same name"
+    }
+  ],
+  "errors": []
+}

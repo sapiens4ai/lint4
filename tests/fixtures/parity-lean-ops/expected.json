@@ -1,0 +1,237 @@
+{
+  "mode": "full",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 0,
+    "purescript": 0,
+    "javascript": 0,
+    "lean": 1
+  },
+  "findings": [
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 4,
+      "column": 37,
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "snippet": "xs.head!",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 5,
+      "column": 26,
+      "span": {
+        "first": 5,
+        "last": 5
+      },
+      "snippet": "xs.tail!",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 6,
+      "column": 1,
+      "span": {
+        "first": 6,
+        "last": 6
+      },
+      "snippet": "def c (xs : Array (Option Nat)) := xs.findSome! id",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "errors/swallowed-throw",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 9,
+      "column": 37,
+      "span": {
+        "first": 9,
+        "last": 9
+      },
+      "snippet": "catch _ => pure ( )",
+      "why": "A handler that returns unit swallows the failure it caught",
+      "fix": "Let the throw propagate or handle the error"
+    },
+    {
+      "rule": "errors/constant-catch",
+      "severity": "could-be-better",
+      "path": "Ops.lean",
+      "line": 11,
+      "column": 37,
+      "span": {
+        "first": 11,
+        "last": 11
+      },
+      "snippet": "catch _ => pure false",
+      "why": "A handler that returns a constant drops the error it caught",
+      "fix": "Handle the caught error or rethrow it"
+    },
+    {
+      "rule": "safety/timer",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 12,
+      "column": 14,
+      "span": {
+        "first": 12,
+        "last": 12
+      },
+      "snippet": "IO.sleep",
+      "why": "A timer hides a race and stands in for a real event",
+      "fix": "Bind the work to pulse"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 14,
+      "column": 35,
+      "span": {
+        "first": 14,
+        "last": 14
+      },
+      "snippet": "] !",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 15,
+      "column": 20,
+      "span": {
+        "first": 15,
+        "last": 15
+      },
+      "snippet": "panic!",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "safety/sorry",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 16,
+      "column": 34,
+      "span": {
+        "first": 16,
+        "last": 16
+      },
+      "snippet": "sorry",
+      "why": "An unfinished or unsound proof passes the build without proving anything",
+      "fix": "Finish the proof"
+    },
+    {
+      "rule": "safety/sorry",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 18,
+      "column": 23,
+      "span": {
+        "first": 18,
+        "last": 18
+      },
+      "snippet": "sorry",
+      "why": "An unfinished or unsound proof passes the build without proving anything",
+      "fix": "Finish the proof"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 20,
+      "column": 34,
+      "span": {
+        "first": 20,
+        "last": 20
+      },
+      "snippet": "xs.head!",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 22,
+      "column": 33,
+      "span": {
+        "first": 22,
+        "last": 22
+      },
+      "snippet": "ys.head!",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "safety/timer",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 24,
+      "column": 3,
+      "span": {
+        "first": 24,
+        "last": 24
+      },
+      "snippet": "let rec helper := do",
+      "why": "A timer hides a race and stands in for a real event",
+      "fix": "Bind the work to pulse"
+    },
+    {
+      "rule": "style/debug-trace",
+      "severity": "warning",
+      "path": "Ops.lean",
+      "line": 28,
+      "column": 31,
+      "span": {
+        "first": 28,
+        "last": 28
+      },
+      "snippet": "dbg_trace",
+      "why": "Debug traces are leftovers that print outside the program's own output",
+      "fix": "Remove the trace"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Ops.lean",
+      "line": 31,
+      "column": 46,
+      "span": {
+        "first": 31,
+        "last": 31
+      },
+      "snippet": "panic!",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "style/debug-trace",
+      "severity": "warning",
+      "path": "Ops.lean",
+      "line": 34,
+      "column": 3,
+      "span": {
+        "first": 34,
+        "last": 34
+      },
+      "snippet": "dbg_trace",
+      "why": "Debug traces are leftovers that print outside the program's own output",
+      "fix": "Remove the trace"
+    }
+  ],
+  "errors": []
+}
