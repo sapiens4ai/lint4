@@ -15,6 +15,8 @@ def keyword (text : String) : Piece :=
 
 def haskellish : List Language := [.haskell, .purescript]
 
+def nonEmptyText : TokenShape := .except (.kind .text) (.word .text "\"\"")
+
 def textTypes : Piece := segments ["String", "Text"]
 
 def flagTypes : Piece := segments ["Bool", "Boolean"]
@@ -27,9 +29,9 @@ def wordAsType : Rule where
   why := "Comparing against a string literal uses a word where a type belongs"
   fix := "Introduce a sum type and match on its constructors"
   checks := [
-    { detector := .fixed .noGo (.tokens haskellish .code [.anyOf [.word .symbol "==", .word .symbol "/="], .exact (.kind .text)])
+    { detector := .fixed .noGo (.tokens haskellish .code [.anyOf [.word .symbol "==", .word .symbol "/="], .exact nonEmptyText])
       examples := [{ bad := [⟨"Bad.hs", "isAdmin r = role r == \"admin\"\n"⟩, ⟨"Bad.purs", "isOpen s = s /= \"closed\"\n"⟩],
-                     good := [⟨"Good.hs", "label = \"role == \\\"admin\\\"\"\nsame a b = a == b\nlimit n = n == 3\n"⟩] }] },
+                     good := [⟨"Good.hs", "label = \"role == \\\"admin\\\"\"\nsame a b = a == b\nlimit n = n == 3\nblank s = s == \"\" || s /= \"\"\n"⟩] }] },
     { detector := .fixed .noGo (.tokens haskellish .code [.exact (.segment "Just"), .exact (.kind .text)])
       examples := [{ bad := [⟨"Bad.hs", "pick m = m == Just \"admin\"\n"⟩],
                      good := [⟨"Good.hs", "import Data.Maybe (Just)\nwrap = Just 3\nlabel = \"Just \\\"x\\\"\"\n"⟩] }] }]

@@ -73,6 +73,7 @@ inductive TokenShape where
   | segment (name : String)
   | containing (kind : TokenKind) (fragment : String)
   | suffix (ending : String)
+  | except (shape : TokenShape) (excluded : TokenShape)
 
 inductive Piece where
   | exact (shape : TokenShape)

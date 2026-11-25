@@ -30,6 +30,7 @@ def fits : TokenShape → Token → Bool
   | .segment name, token => token.kind == .identifier && lastSegment token.text == name
   | .containing kind fragment, token => token.kind == kind && (token.text.splitOn fragment).length > 1
   | .suffix ending, token => token.kind == .identifier && (lastSegment token.text).endsWith ending
+  | .except shape excluded, token => fits shape token && !fits excluded token
 
 def shapes : Piece → List TokenShape
   | .exact shape => [shape]
@@ -56,13 +57,16 @@ def balanced : List String → List Token → List Token → Option (List Token 
       if token.kind == .symbol && token.text == closer then balanced outer (token :: taken) rest
       else balanced closers (token :: taken) rest
 
+def wantsComment : TokenShape → Bool
+  | .kind kind => kind == .comment
+  | .word kind _ => kind == .comment
+  | .containing kind _ => kind == .comment || kind == .pragma
+  | .segment _ => false
+  | .suffix _ => false
+  | .except shape _ => wantsComment shape
+
 def wantsComments (pieces : List Piece) : Bool :=
-  pieces.any fun piece => (shapes piece).any fun
-    | .kind kind => kind == .comment
-    | .word kind _ => kind == .comment
-    | .containing kind _ => kind == .comment || kind == .pragma
-    | .segment _ => false
-    | .suffix _ => false
+  pieces.any fun piece => (shapes piece).any wantsComment
 
 def sequence : Nat → List Piece → List Token → Option (List Token)
   | 0, _, _ => none
