@@ -42,7 +42,7 @@ def importShare : Rule where
   why := "A module that is mostly imports glues too many concerns together"
   fix := "Move the code into the modules it depends on or split the module"
   checks := [
-    { detector := .fixed .couldBeBetter (.importShare [.purescript] 10)
+    { detector := .fixed .couldBeBetter (.importShare [.purescript] (.word .identifier "import") 10)
       examples := [{ bad := [⟨"Bad.purs", "module Bad where\nimport Prelude\nimport Data.Maybe\nx = 1\n"⟩],
                      good := [⟨"Good.purs", "module Good where\nimport Prelude\n" ++ "\n".intercalate
                        ((List.range 12).map fun index => s!"x{index} = {index}") ++ "\n"⟩] }] }]

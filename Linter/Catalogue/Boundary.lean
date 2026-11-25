@@ -4,12 +4,15 @@ namespace Linter.Catalogue.Boundary
 
 open Linter
 
+def keyword (text : String) : Piece :=
+  .exact (.word .identifier text)
+
 def ffi : Rule where
   id := ⟨.boundary, "ffi"⟩
   why := "A foreign import without its JavaScript module, or JavaScript without its PureScript module, breaks the FFI boundary"
   fix := "Keep every foreign module as a .purs and .js pair with the same name"
   checks := [
-    { detector := .fixed .warning .ffiPairing
+    { detector := .fixed .warning (.ffiPairing [keyword "foreign", keyword "import", .exact (.kind .identifier)] (.word .identifier "data"))
       examples := [{ bad := [⟨"src/Clock.purs", "module Clock where\nforeign import now :: Effect Number\n"⟩],
                      good := [⟨"src/Clock.purs", "module Clock where\nforeign import now :: Effect Number\nforeign import data Handle :: Type\n"⟩,
                               ⟨"src/Clock.js", "export const now = () => Date.now();\n"⟩,

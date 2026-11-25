@@ -1,4 +1,5 @@
 import Std.Data.HashMap
+import Std.Data.HashSet
 import Linter.Domain
 
 namespace Linter.Match
@@ -47,71 +48,112 @@ def opening (token : Token) : Option String :=
   else if token.text == "{" then some "}"
   else none
 
-def balanced : List String → List Token → List Token → Option (List Token × List Token)
-  | [], taken, rest => some (taken.reverse, rest)
+def closing (token : Token) : Bool :=
+  token.kind == .symbol && (token.text == ")" || token.text == "]" || token.text == "}")
+
+def balanced : List String → Nat → List Token → Option Nat
+  | [], taken, _ => some taken
   | _ :: _, _, [] => none
   | closers@(closer :: outer), taken, token :: rest =>
     match opening token with
-    | some next => balanced (next :: closers) (token :: taken) rest
+    | some next => balanced (next :: closers) (taken + 1) rest
     | none =>
-      if token.kind == .symbol && token.text == closer then balanced outer (token :: taken) rest
-      else balanced closers (token :: taken) rest
+      if token.kind == .symbol && token.text == closer then balanced outer (taken + 1) rest
+      else balanced closers (taken + 1) rest
 
-def wantsComment : TokenShape → Bool
-  | .kind kind => kind == .comment
-  | .word kind _ => kind == .comment
-  | .containing kind _ => kind == .comment || kind == .pragma
+def hidden : TokenKind → Bool
+  | .comment | .pragma => true
+  | .identifier | .symbol | .number | .text | .character => false
+
+def wantsHidden : TokenShape → Bool
+  | .kind kind => hidden kind
+  | .word kind _ => hidden kind
+  | .containing kind _ => hidden kind
   | .segment _ => false
   | .suffix _ => false
-  | .except shape _ => wantsComment shape
+  | .except shape _ => wantsHidden shape
 
 def wantsComments (pieces : List Piece) : Bool :=
-  pieces.any fun piece => (shapes piece).any wantsComment
-
-def sequence : Nat → List Piece → List Token → Option (List Token)
-  | 0, _, _ => none
-  | _, [], _ => some []
-  | fuel + 1, .gap limit :: pieces, tokens =>
-    let attempts := (List.range (limit + 1)).filterMap fun skip =>
-      if skip > tokens.length then none
-      else (sequence fuel pieces (tokens.drop skip)).map (tokens.take skip ++ ·)
-    attempts.head?
-  | fuel + 1, .skipBalanced :: pieces, token :: rest =>
-    match opening token with
-    | some closer =>
-      match balanced [closer] [token] rest with
-      | some (group, after) => (sequence fuel pieces after).map (group ++ ·)
-      | none => none
-    | none => none
-  | fuel + 1, .many shape :: pieces, tokens =>
-    let run := tokens.takeWhile (fits shape ·)
-    if run.isEmpty then none else (sequence fuel pieces (tokens.drop run.length)).map (run ++ ·)
-  | fuel + 1, .lineStart shape :: pieces, token :: rest =>
-    if token.start.column == 1 && fits shape token then (sequence fuel pieces rest).map (token :: ·) else none
-  | fuel + 1, piece :: pieces, token :: rest =>
-    if (shapes piece).any (fits · token) then (sequence fuel pieces rest).map (token :: ·) else none
-  | _, _ :: _, [] => none
-
-def scan (pieces : List Piece) : List Token → List (List Token)
-  | [] => []
-  | token :: rest =>
-    match sequence (pieces.length + 1) pieces (token :: rest) with
-    | some matched => matched :: scan pieces rest
-    | none => scan pieces rest
+  pieces.any fun piece => (shapes piece).any wantsHidden
 
 def startsDeclaration (token : Token) : Bool := token.start.column == 1
 
-def isImport (token : Token) : Bool := token.kind == .identifier && token.text == "import"
+def reach : Nat → Nat → List Token → Nat
+  | 0, _, _ => 0
+  | _, _, [] => 0
+  | limit + 1, depth, token :: rest =>
+    if startsDeclaration token then 0
+    else if closing token then
+      match depth with
+      | 0 => 0
+      | outer + 1 => reach limit outer rest + 1
+    else if (opening token).isSome then reach limit (depth + 1) rest + 1
+    else reach limit depth rest + 1
 
-def withoutImports : Bool → List Token → List Token
-  | _, [] => []
-  | inside, token :: rest =>
-    let now := if startsDeclaration token then isImport token else inside
-    if now then withoutImports now rest else token :: withoutImports now rest
+def single (test : Token → Bool) : List Token → List Nat
+  | token :: _ => if test token then [1] else []
+  | [] => []
+
+def spans : Piece → List Token → List Nat
+  | .exact shape, tokens => single (fits shape) tokens
+  | .anyOf options, tokens => single (fun token => options.any (fits · token)) tokens
+  | .lineStart shape, tokens => single (fun token => startsDeclaration token && fits shape token) tokens
+  | .many shape, tokens =>
+    match (tokens.takeWhile (fits shape ·)).length with
+    | 0 => []
+    | run => [run]
+  | .gap limit, tokens => List.range (reach limit 0 tokens + 1)
+  | .skipBalanced, token :: rest =>
+    match opening token with
+    | some closer => (balanced [closer] 1 rest).toList
+    | none => []
+  | .skipBalanced, [] => []
+
+def sequence : Nat → List Piece → List Token → Option (List Token)
+  | 0, _, _ => none
+  | _ + 1, [], _ => some []
+  | fuel + 1, piece :: pieces, tokens =>
+    (spans piece tokens).findSome? fun count => (sequence fuel pieces (tokens.drop count)).map (tokens.take count ++ ·)
+
+def precedes (a b : Position) : Bool := a.line < b.line || (a.line == b.line && a.column < b.column)
+
+def joined (earlier later : List Token) : Option (List Token) :=
+  match earlier.getLast?, later.head? with
+  | some last, some first =>
+    if precedes last.start first.start then none else some (earlier ++ later.filter fun token => precedes last.start token.start)
+  | _, _ => none
+
+def merged (matched : List Token) : List (List Token) → List (List Token)
+  | previous :: older =>
+    match joined previous matched with
+    | some union => union :: older
+    | none => matched :: previous :: older
+  | [] => [matched]
+
+def scanFrom (pieces : List Piece) (fuel : Nat) : List (List Token) → List Token → List (List Token)
+  | found, [] => found.reverse
+  | found, token :: rest =>
+    match sequence fuel pieces (token :: rest) with
+    | some matched => scanFrom pieces fuel (merged matched found) rest
+    | none => scanFrom pieces fuel found rest
+
+def scan (pieces : List Piece) (tokens : List Token) : List (List Token) :=
+  scanFrom pieces (pieces.length + 1) [] tokens
+
+inductive Section where
+  | shown | concealed
+
+def outside (header : TokenShape) (tokens : List Token) : List Token :=
+  let (kept, _) := tokens.foldl (init := ([], Section.shown)) fun (kept, state) token =>
+    let now := if startsDeclaration token then (if fits header token then .concealed else .shown) else state
+    match now with
+    | .shown => (token :: kept, now)
+    | .concealed => (kept, now)
+  kept.reverse
 
 def visible : Region → List Token → List Token
   | .anywhere, tokens => tokens
-  | .code, tokens => withoutImports false tokens
+  | .outside header, tokens => outside header tokens
 
 def hit (matched : List Token) : Option Hit :=
   match matched.head?, matched.getLast? with
@@ -120,18 +162,19 @@ def hit (matched : List Token) : Option Hit :=
   | _, _ => none
 
 def code (tokens : List Token) : List Token :=
-  tokens.filter fun token => token.kind != .comment && token.kind != .pragma
+  tokens.filter fun token => !hidden token.kind
 
 def tokenHits (region : Region) (pieces : List Piece) (tokens : List Token) : List Hit :=
   let stream := if wantsComments pieces then tokens else code tokens
   (scan pieces (visible region stream)).filterMap hit
 
-def sourceLines (file : LexedFile) : List String := file.file.source.code.splitOn "\n"
+def withoutReturn (text : String) : String :=
+  if text.endsWith "\r" then String.ofList text.toList.dropLast else text
 
-def lineText (file : LexedFile) (line : Nat) : String :=
-  match ((sourceLines file).drop (line - 1)).head? with
-  | some text => text.trimAscii.toString
-  | none => ""
+def sourceLines (file : LexedFile) : List String := (file.file.source.code.splitOn "\n").map withoutReturn
+
+def shortened (text : String) : String :=
+  if text.length > 100 then String.ofList (text.toList.take 100) ++ "..." else text
 
 def exceeded (tiers : List Tier) (size : Nat) : Option Tier :=
   tiers.foldl (init := none) fun best tier =>
@@ -142,14 +185,24 @@ def exceeded (tiers : List Tier) (size : Nat) : Option Tier :=
 def longLines (tiers : List Tier) (file : LexedFile) : List Placed :=
   (sourceLines file).zipIdx.filterMap fun (text, index) =>
     (exceeded tiers text.length).map fun tier =>
-      ⟨tier.severity, file.file.source.path, ⟨⟨index + 1, 1⟩, ⟨index + 1, index + 1⟩, s!"{text.length} characters"⟩⟩
+      ⟨tier.severity, file.file.source.path, ⟨⟨index + 1, 1⟩, ⟨index + 1, index + 1⟩, shortened text.trimAscii.toString⟩⟩
+
+def byLine (tokens : List Token) : List (List Token) :=
+  let groups := tokens.foldl (init := []) fun groups token =>
+    match groups with
+    | (first :: others) :: rest =>
+      if first.start.line == token.start.line then (token :: first :: others) :: rest else [token] :: groups
+    | [] :: rest => [token] :: rest
+    | [] => [[token]]
+  (groups.map List.reverse).reverse
 
 def denseLines (shapes : List TokenShape) (atLeast : Nat) (file : LexedFile) : List Hit :=
-  let fitting := (code file.tokens).filter fun token => shapes.any (fits · token)
-  (fitting.map (·.start.line)).eraseDups.filterMap fun line =>
-    let here := fitting.filter (·.start.line == line)
+  let lines := (sourceLines file).toArray
+  (byLine ((code file.tokens).filter fun token => shapes.any (fits · token))).filterMap fun here =>
     match here.head? with
-    | some first => if here.length ≥ atLeast then some ⟨first.start, ⟨line, line⟩, lineText file line⟩ else none
+    | some first =>
+      let line := first.start.line
+      if here.length ≥ atLeast then some ⟨first.start, ⟨line, line⟩, (lines.getD (line - 1) "").trimAscii.toString⟩ else none
     | none => none
 
 def declarations (tokens : List Token) : List (List Token) :=
@@ -166,9 +219,9 @@ def largeDeclarations (limit : Nat) (file : LexedFile) : List Hit :=
       (hit group).map fun found => { found with snippet := s!"{group.length} tokens: " ++ " ".intercalate ((group.take 6).map (·.text)) }
     else none
 
-def heavyImports (percent : Nat) (file : LexedFile) : List Hit :=
+def heavyImports (header : TokenShape) (percent : Nat) (file : LexedFile) : List Hit :=
   let filled := ((sourceLines file).filter fun text => !text.all Char.isWhitespace).length
-  let imports := (((code file.tokens).filter fun token => startsDeclaration token && isImport token).map (·.start.line)).eraseDups
+  let imports := ((code file.tokens).filter fun token => startsDeclaration token && fits header token).map (·.start.line)
   match imports.head?, imports.getLast? with
   | some first, some last =>
     if imports.length * 100 > percent * filled then [⟨⟨first, 1⟩, ⟨first, last⟩, s!"{imports.length} of {filled} lines are imports"⟩]
@@ -182,17 +235,21 @@ def owners (entries : List (String × String)) : Std.HashMap String (List String
 
 def pathOf (file : LexedFile) : String := file.file.source.path
 
+def firstOfEach (tokens : List Token) : List Token :=
+  let (kept, _) := tokens.foldl (init := ([], (∅ : Std.HashSet String))) fun (kept, seen) token =>
+    if seen.contains token.text then (kept, seen) else (token :: kept, seen.insert token.text)
+  kept.reverse
+
 def repeated (minModules minLength : Nat) (ignored : List String) (files : List LexedFile) : List (String × Hit) :=
   let found := files.map fun file =>
     (pathOf file, (code file.tokens).filter fun token =>
       token.kind == .number && token.text.length ≥ minLength && !ignored.contains token.text)
   let places := owners (found.flatMap fun (path, tokens) => tokens.map fun token => (token.text, path))
   found.flatMap fun (path, tokens) =>
-    (tokens.map (·.text)).eraseDups.filterMap fun value =>
-      let modules := places.getD value []
+    (firstOfEach tokens).filterMap fun token =>
+      let modules := places.getD token.text []
       if modules.length ≥ minModules then
-        (tokens.find? (·.text == value)).bind (fun token => hit [token]) |>.map fun found =>
-          (path, { found with snippet := s!"{value} appears in {modules.length} modules" })
+        (hit [token]).map fun found => (path, { found with snippet := s!"{token.text} appears in {modules.length} modules" })
       else none
 
 def bodies (minTokens : Nat) (ignored : List String) (file : LexedFile) : List (String × List Token) :=
@@ -210,18 +267,15 @@ def duplicates (minTokens : Nat) (ignored : List String) (files : List LexedFile
     | some other, some found, some name => some (path, { found with snippet := s!"{name.text} repeats a declaration in {other}" })
     | _, _, _ => none
 
-def foreignImport : List Piece :=
-  [.exact (.word .identifier "foreign"), .exact (.word .identifier "import"), .exact (.kind .identifier)]
-
 def sibling (path extension : String) : String := ((System.FilePath.mk path).withExtension extension).toString
 
-def unpaired (files : List LexedFile) : List (String × Hit) :=
+def unpaired (foreign : List Piece) (exempt : TokenShape) (files : List LexedFile) : List (String × Hit) :=
   let paths := files.map pathOf
   files.flatMap fun file =>
     let path := pathOf file
     match file.file.language with
     | .purescript =>
-      let imports := (scan foreignImport (code file.tokens)).filter fun matched => !(matched.getLast?.any (·.text == "data"))
+      let imports := (scan foreign (code file.tokens)).filter fun matched => !(matched.getLast?.any (fits exempt ·))
       match (imports.filterMap hit).head? with
       | some found => if paths.contains (sibling path "js") then [] else [(path, found)]
       | none => []
@@ -239,14 +293,14 @@ def matcherHits : Matcher → List LexedFile → List (String × Hit)
   | .tokens languages region pieces, files => eachFile languages files fun file => tokenHits region pieces file.tokens
   | .lineDensity languages shapes atLeast, files => eachFile languages files (denseLines shapes atLeast)
   | .declarationTokens languages limit, files => eachFile languages files (largeDeclarations limit)
-  | .importShare languages percent, files => eachFile languages files (heavyImports percent)
+  | .importShare languages header percent, files => eachFile languages files (heavyImports header percent)
   | .repeatedLiteral languages minModules minLength ignored, files => repeated minModules minLength ignored (within languages files)
   | .duplicateBody languages minTokens ignored, files => duplicates minTokens ignored (within languages files)
-  | .ffiPairing, files => unpaired files
+  | .ffiPairing foreign exempt, files => unpaired foreign exempt files
 
 def fileScoped : Matcher → Bool
   | .tokens .. | .lineDensity .. | .declarationTokens .. | .importShare .. => true
-  | .repeatedLiteral .. | .duplicateBody .. | .ffiPairing => false
+  | .repeatedLiteral .. | .duplicateBody .. | .ffiPairing .. => false
 
 def runsIn : Mode → Detector → Bool
   | .full, .fixed _ _ => true

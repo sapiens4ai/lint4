@@ -46,7 +46,8 @@ def rawText : Rule where
       examples := [{ bad := [⟨"Bad.hs", "greet :: Text -> T.Text -> Text\ngreet a b = a <> b\n"⟩,
                              ⟨"Bad.purs", "greet :: String -> String -> String\ngreet a b = a <> b\n"⟩],
                      good := [⟨"Good.hs", "import Data.Text (Text, String)\n" ++
-                       "greet :: Name -> Text -> Text\ngreet n t = t\nnote = \"Text -> Text ->\"\n"⟩] }] },
+                       "greet :: Name -> Text -> Text\ngreet n t = t\nnote = \"Text -> Text ->\"\n"⟩,
+                              ⟨"Next.hs", "f :: Text -> Int\nf = T.length\ng :: Text -> Int\ng = T.length\n"⟩] }] },
     { detector := .fixed .noGo (.tokens haskellish .code [.lineStart (.word .identifier "type"), .exact (.kind .identifier), symbol "=", textTypes])
       examples := [{ bad := [⟨"Bad.hs", "type Email = Text\n"⟩, ⟨"Bad.purs", "type Email = String\n"⟩],
                      good := [⟨"Good.hs", "newtype Email = Email Text\ntype Names = Map Text Int\nnote = \"type X = Text\"\n"⟩] }] }]
@@ -59,7 +60,8 @@ def booleanFlags : Rule where
     { detector := .fixed .warning (.tokens haskellish .code (twoParameters flagTypes))
       examples := [{ bad := [⟨"Bad.hs", "render :: Bool -> Bool -> Html\nrender a b = page\n"⟩,
                              ⟨"Bad.purs", "render :: Boolean -> Int -> Boolean -> Html\nrender a n b = page\n"⟩],
-                     good := [⟨"Good.hs", "import Data.Bool (Bool)\nvisible :: Bool -> Html\nvisible b = page\nnote = \"Bool -> Bool ->\"\n"⟩] }] }]
+                     good := [⟨"Good.hs", "import Data.Bool (Bool)\nvisible :: Bool -> Html\nvisible b = page\nnote = \"Bool -> Bool ->\"\n"⟩,
+                              ⟨"Next.hs", "shown :: Bool -> Html\nshown b = page\nhidden :: Bool -> Html\nhidden b = page\n"⟩] }] }]
 
 def stringField : List Piece := [.gap 12, symbol "::", .gap 1, textTypes]
 
@@ -74,7 +76,9 @@ def stringRecord : Rule where
                        "  , c :: Maybe Text\n  , d :: Text\n  , e :: T.Text\n  , f :: Text\n  }\n"⟩,
                              ⟨"Bad.purs", "type P = { a :: String, b :: String, c :: String, d :: String, e :: String, f :: String }\n"⟩],
                      good := [⟨"Good.hs", "data P = P\n  { a :: Text\n  , b :: Name\n  , c :: Int\n  , d :: Text\n  }\n" ++
-                       "note = \"{ a :: Text, b :: Text, c :: Text, d :: Text, e :: Text, f :: Text }\"\n"⟩] }] }]
+                       "note = \"{ a :: Text, b :: Text, c :: Text, d :: Text, e :: Text, f :: Text }\"\n"⟩,
+                              ⟨"Pair.hs", "data P = A { a :: Text, b :: Text, c :: Text } | B { d :: Text, e :: Text, f :: Text }\n"⟩,
+                              ⟨"Pair.purs", "type A = { a :: String, b :: String, c :: String }\ntype B = { d :: String, e :: String, f :: String }\n"⟩] }] }]
 
 def untypedTime : Rule where
   id := ⟨.types, "untyped-time"⟩
@@ -91,20 +95,24 @@ def untypedTime : Rule where
 
 def exposed : Piece := .anyOf (["String", "Nat", "Int", "Json"].map (.word .identifier ·))
 
+def entry : TokenShape := .except (.kind .identifier) (.word .identifier "main")
+
 def unprotected : Rule where
   id := ⟨.types, "unprotected"⟩
   why := "A public signature of raw String, Nat, Int or Json lets callers pass any value"
   fix := "Refine the type with a domain type or a subtype"
   checks := [
-    { detector := .fixed .warning (.tokens [.lean] .code [.lineStart (.word .identifier "def"), .exact (.kind .identifier), .gap 16,
+    { detector := .fixed .warning (.tokens [.lean] .code [.lineStart (.word .identifier "def"), .exact entry, .gap 16,
         symbol ":", .gap 2, exposed])
       examples := [{ bad := [⟨"Bad.lean", "def greet (name : String) : Greeting := ⟨name⟩\n"⟩,
                              ⟨"Total.lean", "def total (xs : Orders) : Nat := xs.size\n"⟩],
-                     good := [⟨"Good.lean", "private def greet (name : String) : Nat := 1\ndef label : Label := ⟨\"def x : String\"⟩\n"⟩] }] },
+                     good := [⟨"Good.lean", "private def greet (name : String) : Nat := 1\ndef label : Label := ⟨\"def x : String\"⟩\n"⟩,
+                              ⟨"Main.lean", "def main (args : List String) : IO UInt32 := pure 0\n"⟩] }] },
     { detector := .fixed .warning (.tokens [.lean] .code [.lineStart (.word .identifier "structure"), .exact (.kind .identifier), .gap 40,
         symbol ":", .gap 2, exposed])
       examples := [{ bad := [⟨"Bad.lean", "structure User where\n  id : UserId\n  name : String\n"⟩],
-                     good := [⟨"Good.lean", "structure User where\n  id : UserId\n  name : Name\n  deriving Repr\n"⟩] }] }]
+                     good := [⟨"Good.lean", "structure User where\n  id : UserId\n  name : Name\n  deriving Repr\n"⟩,
+                              ⟨"Scale.lean", "structure Box where\n  size : Size\nprivate def scale (n : Nat) : Size := ⟨n⟩\n"⟩] }] }]
 
 def literalBranch : Rule where
   id := ⟨.types, "literal-branch"⟩
