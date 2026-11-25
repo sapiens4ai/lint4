@@ -1,0 +1,41 @@
+{
+  "mode": "full",
+  "outcome": "passed",
+  "checked": {
+    "haskell": 0,
+    "purescript": 0,
+    "javascript": 0,
+    "lean": 1
+  },
+  "findings": [
+    {
+      "rule": "safety/axiom",
+      "severity": "warning",
+      "path": "Axioms.lean",
+      "line": 1,
+      "column": 1,
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "snippet": "axiom",
+      "why": "An extra axiom can make any statement provable",
+      "fix": "Remove the axiom and prove the fact or model it as a hypothesis"
+    },
+    {
+      "rule": "safety/axiom",
+      "severity": "warning",
+      "path": "Axioms.lean",
+      "line": 3,
+      "column": 1,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "theorem native : 2 + 2 = 4 := by native_decide",
+      "why": "An extra axiom can make any statement provable",
+      "fix": "Remove the axiom and prove the fact or model it as a hypothesis"
+    }
+  ],
+  "errors": []
+}

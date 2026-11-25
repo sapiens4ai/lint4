@@ -1,0 +1,69 @@
+{
+  "mode": "full",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 0,
+    "purescript": 2,
+    "javascript": 1,
+    "lean": 0
+  },
+  "findings": [
+    {
+      "rule": "errors/lenient-decoder",
+      "severity": "no-go",
+      "path": "decoders/Decode.purs",
+      "line": 2,
+      "column": 19,
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "snippet": "| Other String",
+      "why": "A catch-all String constructor accepts any unknown input as valid",
+      "fix": "Keep the sum type closed and return Left for unknown input"
+    },
+    {
+      "rule": "errors/lenient-decoder",
+      "severity": "no-go",
+      "path": "decoders/Decode.purs",
+      "line": 6,
+      "column": 3,
+      "span": {
+        "first": 6,
+        "last": 6
+      },
+      "snippet": "_ -> Right Dark",
+      "why": "A catch-all String constructor accepts any unknown input as valid",
+      "fix": "Keep the sum type closed and return Left for unknown input"
+    },
+    {
+      "rule": "style/else-if-chain",
+      "severity": "warning",
+      "path": "decoders/Decode.purs",
+      "line": 8,
+      "column": 27,
+      "span": {
+        "first": 8,
+        "last": 8
+      },
+      "snippet": "else if n == 2 then 2 else if",
+      "why": "A chain of else-if branches hides the cases that guards or a sum type would name",
+      "fix": "Use guards, a case expression or a sum type"
+    },
+    {
+      "rule": "errors/lenient-decoder",
+      "severity": "no-go",
+      "path": "decoders/Decode.purs",
+      "line": 12,
+      "column": 3,
+      "span": {
+        "first": 12,
+        "last": 12
+      },
+      "snippet": "_ -> Right Dark",
+      "why": "A catch-all String constructor accepts any unknown input as valid",
+      "fix": "Keep the sum type closed and return Left for unknown input"
+    }
+  ],
+  "errors": []
+}

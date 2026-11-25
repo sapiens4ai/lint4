@@ -1,0 +1,1 @@
+setTimeout(f, 0);

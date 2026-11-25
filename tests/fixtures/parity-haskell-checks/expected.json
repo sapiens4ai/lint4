@@ -1,0 +1,97 @@
+{
+  "mode": "full",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 3,
+    "purescript": 0,
+    "javascript": 0,
+    "lean": 0
+  },
+  "findings": [
+    {
+      "rule": "types/raw-text",
+      "severity": "no-go",
+      "path": "Checks.hs",
+      "line": 3,
+      "column": 1,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "type A = X.Text",
+      "why": "Several raw text parameters can be swapped without the compiler noticing",
+      "fix": "Wrap each meaning in its own newtype"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Checks.hs",
+      "line": 5,
+      "column": 13,
+      "span": {
+        "first": 5,
+        "last": 5
+      },
+      "snippet": "error msg",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    },
+    {
+      "rule": "style/large-declaration",
+      "severity": "could-be-better",
+      "path": "Checks.hs",
+      "line": 9,
+      "column": 1,
+      "span": {
+        "first": 9,
+        "last": 9
+      },
+      "snippet": "large, small :: IO ()",
+      "why": "A very large declaration does too many things to understand or test in one piece",
+      "fix": "Split the declaration into smaller named parts"
+    },
+    {
+      "rule": "safety/warnings-off",
+      "severity": "no-go",
+      "path": "Flags.hs",
+      "line": 2,
+      "column": 1,
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "snippet": "{-# OPTIONS_GHC -Wno-unused-imports #-}",
+      "why": "A disabled warning hides the defect it was written to catch",
+      "fix": "Remove the flag that disables the warning and fix the code it reports"
+    },
+    {
+      "rule": "safety/warnings-off",
+      "severity": "no-go",
+      "path": "Flags.hs",
+      "line": 3,
+      "column": 1,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "{-# OPTIONS_GHC\t-w #-}",
+      "why": "A disabled warning hides the defect it was written to catch",
+      "fix": "Remove the flag that disables the warning and fix the code it reports"
+    },
+    {
+      "rule": "safety/escape-hatch",
+      "severity": "no-go",
+      "path": "Scopes.hs",
+      "line": 5,
+      "column": 14,
+      "span": {
+        "first": 5,
+        "last": 5
+      },
+      "snippet": "head",
+      "why": "Partial functions and unsafe casts bypass the type system",
+      "fix": "Handle every case and decode values with real types"
+    }
+  ],
+  "errors": []
+}

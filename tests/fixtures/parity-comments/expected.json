@@ -1,0 +1,195 @@
+{
+  "mode": "full",
+  "outcome": "blocked",
+  "checked": {
+    "haskell": 1,
+    "purescript": 2,
+    "javascript": 1,
+    "lean": 1
+  },
+  "findings": [
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Ffi.js",
+      "line": 1,
+      "column": 1,
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "snippet": "// line",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Ffi.js",
+      "line": 3,
+      "column": 1,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "export const tail = 1; /* block */",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.hs",
+      "line": 3,
+      "column": 1,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "-- line",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.hs",
+      "line": 4,
+      "column": 7,
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "snippet": "-- trailing",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.hs",
+      "line": 5,
+      "column": 1,
+      "span": {
+        "first": 5,
+        "last": 5
+      },
+      "snippet": "{- block -}",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.lean",
+      "line": 1,
+      "column": 1,
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "snippet": "/-! module doc -/",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.lean",
+      "line": 2,
+      "column": 1,
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "snippet": "-- line",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.lean",
+      "line": 3,
+      "column": 12,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "-- trailing",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.lean",
+      "line": 4,
+      "column": 1,
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "snippet": "/-- doc -/",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.lean",
+      "line": 6,
+      "column": 1,
+      "span": {
+        "first": 6,
+        "last": 7
+      },
+      "snippet": "/- block\n   comment -/",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.purs",
+      "line": 2,
+      "column": 1,
+      "span": {
+        "first": 2,
+        "last": 2
+      },
+      "snippet": "-- line",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.purs",
+      "line": 3,
+      "column": 7,
+      "span": {
+        "first": 3,
+        "last": 3
+      },
+      "snippet": "-- trailing",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    },
+    {
+      "rule": "style/comment",
+      "severity": "no-go",
+      "path": "comments/Notes.purs",
+      "line": 4,
+      "column": 1,
+      "span": {
+        "first": 4,
+        "last": 4
+      },
+      "snippet": "{- block -}",
+      "why": "Comments are banned: names and types carry the meaning",
+      "fix": "Delete the comment and make the code say it"
+    }
+  ],
+  "errors": []
+}
