@@ -126,6 +126,37 @@ def literalBranch : Rule where
       examples := [{ bad := [⟨"Bad.lean", "def f (s : Role) : Nat :=\n  match s.word with\n  | \"admin\" => 1\n  | _ => 0\n"⟩],
                      good := [⟨"Good.lean", "def f : Role → Nat\n  | .admin => 1\n  | .guest => 0\ndef s := \"| \\\"a\\\" => 1\"\n"⟩] }] }]
 
-def rules : List Rule := [wordAsType, rawText, booleanFlags, stringRecord, untypedTime, unprotected, literalBranch]
+def stringDispatch : Rule where
+  id := ⟨.types, "string-dispatch"⟩
+  why := "Dispatching on string literals accepts any typo and lets the compiler miss a case"
+  fix := "Decode the string once into a sum type and match on its constructors"
+  checks := [
+    { detector := .fixed .couldBeBetter (.tokens haskellish .code [.anyOf [.word .identifier "of", .word .identifier "case"], .exact nonEmptyText,
+        symbol "->"])
+      examples := [{ bad := [⟨"Bad.purs", "handle event = case event.name of\n  \"error\" -> showError event\n  _ -> skip\n"⟩,
+                             ⟨"Bad.hs", "route = \\case\n  \"open\" -> openDoor\n  _ -> stay\n"⟩],
+                     good := [⟨"Good.purs", "handle event = case event of\n  Failed reason -> showError reason\n  _ -> skip\n" ++
+                       "blank s = case s of\n  \"\" -> Nothing\n  _ -> Just s\nsize n = case n of\n  0 -> Empty\n  _ -> Full\n" ++
+                       "hint = \"case x of \\\"error\\\" ->\"\n"⟩] }] }]
+
+def tagFields : Piece := .anyOf (["op", "kind", "type", "tag", "event", "action", "command", "method", "status", "state"].map (.word .identifier ·))
+
+def fieldStart : Piece := .anyOf [.word .symbol "{", .word .symbol ","]
+
+def stringTag : Rule where
+  id := ⟨.types, "string-tag"⟩
+  why := "A tag field holding a string lets any value through where a fixed set of cases belongs"
+  fix := "Give the tag a sum type and convert it to a string only at the wire"
+  checks := [
+    { detector := .fixed .couldBeBetter (.tokens haskellish .code [fieldStart, tagFields, .anyOf [.word .symbol ":", .word .symbol "="], .exact nonEmptyText])
+      examples := [{ bad := [⟨"Bad.purs", "request = { op: \"memo\", fields: body }\n"⟩, ⟨"Bad.hs", "msg = Message { body = b, kind = \"ping\" }\n"⟩],
+                     good := [⟨"Good.purs", "request = { op: Memo, fields: body, label: \"memo\" }\nhint = \"{ op: \\\"memo\\\" }\"\n" ++
+                       "reset = r { state = \"\" }\n"⟩] }] },
+    { detector := .fixed .couldBeBetter (.tokens haskellish .code [fieldStart, tagFields, symbol "::", textTypes])
+      examples := [{ bad := [⟨"Bad.purs", "type Request = { op :: String, body :: Json }\n"⟩,
+                             ⟨"Bad.hs", "data Event = Event { name :: Text, kind :: T.Text }\n"⟩],
+                     good := [⟨"Good.purs", "type Request = { op :: Op, body :: Json, label :: String }\nhint = \"{ op :: String }\"\n"⟩] }] }]
+
+def rules : List Rule := [wordAsType, rawText, booleanFlags, stringRecord, untypedTime, unprotected, literalBranch, stringDispatch, stringTag]
 
 end Linter.Catalogue.Types

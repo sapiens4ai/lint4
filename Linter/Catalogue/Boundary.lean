@@ -82,6 +82,41 @@ def hardcodedEndpoint : Rule where
                               ⟨"Probe.hs", "module Probe where\nprobe = [\"https://invalid.local\", \"http://relay.test:9\"]\n"⟩,
                               ⟨"Docs.hs", "module Docs where\ndocs = \"https://api.example.com/v1\"\n"⟩] }] }]
 
-def rules : List Rule := [ffi, json, hardcodedEndpoint]
+def untypedFfi : Rule where
+  id := ⟨.boundary, "untyped-ffi"⟩
+  why := "A foreign import typed as Json, Foreign or a free type variable lets JavaScript return anything unchecked"
+  fix := "Give the import a concrete type, or decode its result at the boundary"
+  checks := [
+    { detector := .fixed .couldBeBetter (.tokens [.purescript] .code [.lineStart (.word .identifier "foreign"), keyword "import",
+        .exact (.except (.kind .identifier) (.word .identifier "data")), .exact (.word .symbol "::"), .gap 12,
+        .anyOf [.segment "Foreign", .segment "Json", .word .identifier "forall"]])
+      examples := [{ bad := [⟨"Bad.purs", "module Bad where\nforeign import call :: String -> Effect Json\n"⟩,
+                             ⟨"Bad.js", "export const call = (n) => () => n;\n"⟩,
+                             ⟨"Any.purs", "module Any where\nforeign import cast :: forall a b. a -> b\n"⟩, ⟨"Any.js", "export const cast = (a) => a;\n"⟩],
+                     good := [⟨"Good.purs", "module Good where\nforeign import now :: Effect Number\nforeign import data Json :: Type\n" ++
+                       "hint = \"foreign import x :: Json\"\n"⟩, ⟨"Good.js", "export const now = () => Date.now();\n"⟩] }] }]
+
+def keyOperators : Piece := .anyOf [.word .symbol ".:", .word .symbol ".:?", .word .symbol ".:!"]
+
+def lookups : Piece := .anyOf (["lookup", "findWithDefault", "member"].map .segment)
+
+def decoders : Region := .outside (.word .identifier "instance")
+
+def jsonKeyLookup : Rule where
+  id := ⟨.boundary, "json-key-lookup"⟩
+  why := "Looking up string keys in the middle of the code spreads the wire format through the domain"
+  fix := "Decode the object once in a FromJSON or DecodeJson instance and work with the decoded type"
+  checks := [
+    { detector := .fixed .couldBeBetter (.tokens [.haskell, .purescript] decoders [keyOperators, .exact (.kind .text)])
+      examples := [{ bad := [⟨"Bad.hs", "userName o = o .: \"name\"\n"⟩, ⟨"Bad.purs", "nick o = o .:? \"nick\"\n"⟩],
+                     good := [⟨"Good.hs", "instance FromJSON User where\n  parseJSON = withObject \"User\" $ \\o -> User <$> o .: \"name\"\n" ++
+                       "hint = \"o .: \\\"name\\\"\"\n"⟩] }] },
+    { detector := .fixed .couldBeBetter (.tokens [.haskell, .purescript] decoders [lookups, .exact (.except (.kind .text) (.word .text "\"\"")),
+        .exact (.kind .identifier)])
+      examples := [{ bad := [⟨"Bad.hs", "userName o = KM.lookup \"name\" o\n"⟩],
+                     good := [⟨"Good.hs", "userName key o = KM.lookup key o\n" ++
+                       "instance FromJSON User where\n  parseJSON = withObject \"User\" $ \\o -> maybe empty pure (KM.lookup \"name\" o)\n"⟩] }] }]
+
+def rules : List Rule := [ffi, json, hardcodedEndpoint, untypedFfi, jsonKeyLookup]
 
 end Linter.Catalogue.Boundary
