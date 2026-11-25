@@ -16,7 +16,7 @@ def rules : List Linter.Rule :=
 def discovery : Linter.Intake.Policy where
   vendored := [".git", ".lake", ".spago", "node_modules", "output", "dist-newstyle"]
   foreign := { script := "js", host := "purs", language := .javascript }
-  generated := [.header 5 [["Generated", "generated", "GENERATED"], ["Do not edit", "DO NOT EDIT", "do not edit"]], .minified 3 1000]
+  generated := [.header 5 [["Generated", "generated", "GENERATED"], ["Do not edit", "DO NOT EDIT", "do not edit"]], .minified [.javascript] 3 1000]
   limits := { entries := 20000, total := 200 * 1000 * 1000, entry := 20 * 1000 * 1000 }
 
 end Linter.Catalogue

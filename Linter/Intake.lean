@@ -13,7 +13,7 @@ structure Foreign where
 
 inductive Marker where
   | header (lines : Nat) (phrases : List (List String))
-  | minified (maxLines : Nat) (longest : Nat)
+  | minified (languages : List Language) (maxLines : Nat) (longest : Nat)
 
 structure Policy where
   vendored : List String
@@ -68,16 +68,20 @@ def kindOf (foreign : Foreign) (hosted : String → Bool) (path : String) : Opti
     else (Language.ofExtension extension).map .source
   | none => none
 
-def marks (code : String) : Marker → Bool
+def marks (language : Language) (code : String) : Marker → Bool
   | .header count phrases =>
     let head := String.intercalate "\n" ((code.splitOn "\n").take count)
     phrases.all fun options => options.any fun phrase => (head.splitOn phrase).length > 1
-  | .minified maxLines longest =>
+  | .minified languages maxLines longest =>
     let lines := (code.trimAsciiEnd.toString.splitOn "\n")
-    lines.length ≤ maxLines && lines.any (·.length ≥ longest)
+    languages.contains language && lines.length ≤ maxLines && lines.any (·.length ≥ longest)
+
+def kindLanguage : Kind → Language
+  | .source language => language
+  | .orphan => .javascript
 
 def place (policy : Policy) (kind : Kind) (source : SourceFile) : Option Discovered :=
-  if policy.generated.any (marks source.code) then none
+  if policy.generated.any (marks (kindLanguage kind) source.code) then none
   else match kind with
     | .source language => some (.checked ⟨language, source⟩)
     | .orphan => some (.orphan source.path)

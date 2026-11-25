@@ -1,0 +1,41 @@
+{
+  "checked": {
+    "haskell": 1,
+    "javascript": 0,
+    "lean": 0,
+    "purescript": 0
+  },
+  "errors": [],
+  "findings": [
+    {
+      "column": 1,
+      "fix": "Split the line into named steps or wrap it",
+      "line": 1,
+      "path": "Short.hs",
+      "rule": "style/long-line",
+      "severity": "no-go",
+      "snippet": "x = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...",
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "why": "A long line hides logic past the edge of the screen and in review diffs"
+    },
+    {
+      "column": 1208,
+      "fix": "Delete the comment and make the code say it",
+      "line": 1,
+      "path": "Short.hs",
+      "rule": "style/comment",
+      "severity": "no-go",
+      "snippet": "-- sneaky",
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "why": "Comments are banned: names and types carry the meaning"
+    }
+  ],
+  "mode": "full",
+  "outcome": "blocked"
+}
