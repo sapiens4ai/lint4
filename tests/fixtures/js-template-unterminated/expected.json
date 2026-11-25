@@ -1,0 +1,17 @@
+{
+  "mode": "full",
+  "outcome": "incomplete",
+  "checked": {
+    "haskell": 0,
+    "purescript": 1,
+    "javascript": 1,
+    "lean": 0
+  },
+  "errors": [
+    {
+      "path": "src/F.js",
+      "message": "2:1: unterminated template literal"
+    }
+  ],
+  "findings": []
+}

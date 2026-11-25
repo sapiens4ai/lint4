@@ -10,16 +10,21 @@ for case in "$root"/tests/fixtures/*/; do
     "$bin" check --diff "$case/input.diff" > "$work/actual.json" 2> "$work/stderr"
   elif [ -f "$case/input.zip" ]; then
     "$bin" check --archive "$case/input.zip" > "$work/actual.json" 2> "$work/stderr"
+  elif [ -f "$case/input.sh" ]; then
+    mkdir "$work/build"
+    (cd "$work/build" && bash "$case/input.sh" "$work/input.zip")
+    "$bin" check --archive "$work/input.zip" > "$work/actual.json" 2> "$work/stderr"
   else
     (cd "$case/files" && zip -qr "$work/input.zip" .)
     "$bin" check --archive "$work/input.zip" > "$work/actual.json" 2> "$work/stderr"
   fi
   code=$?
   if [ -f "$case/expected.exit" ]; then
-    if [ "$code" = "$(cat "$case/expected.exit")" ] && [ ! -s "$work/actual.json" ] && [ -s "$work/stderr" ]; then
+    if [ "$code" = "$(cat "$case/expected.exit")" ] && [ ! -s "$work/actual.json" ] && [ -s "$work/stderr" ] &&
+      { [ ! -f "$case/expected.stderr" ] || diff "$case/expected.stderr" "$work/stderr" > /dev/null; }; then
       echo "pass $name"
     else
-      echo "FAIL $name: exit $code, stdout $(wc -c < "$work/actual.json") bytes"; failed=1
+      echo "FAIL $name: exit $code, stdout $(wc -c < "$work/actual.json") bytes, stderr $(head -c 300 "$work/stderr")"; failed=1
     fi
   elif diff <(jq -S . "$case/expected.json") <(jq -S . "$work/actual.json") > "$work/diff"; then
     echo "pass $name"

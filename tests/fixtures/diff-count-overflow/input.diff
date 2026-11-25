@@ -1,0 +1,7 @@
+diff --git a/F.hs b/F.hs
+--- a/F.hs
++++ b/F.hs
+@@ -1,0 +1,2 @@
+-x = 1
++y = 2 -- c
++z = 3

@@ -136,7 +136,8 @@ def unfinishedProof : Rule where
 
 def extraAxiom : Rule where
   id := ⟨.safety, "axiom"⟩
-  why := "An extra axiom can make any statement provable"
+  why := "A user axiom can make any statement provable; native_decide is a different risk: " ++
+    "it extends the trusted base from the kernel to the compiler and its generated code"
   fix := "Remove the axiom and prove the fact or model it as a hypothesis"
   checks := [
     { detector := .fixed .warning (.tokens [.lean] .code [names .identifier ["axiom"]])
