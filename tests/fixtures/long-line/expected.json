@@ -14,7 +14,7 @@
       "path": "Main.hs",
       "rule": "style/long-line",
       "severity": "warning",
-      "snippet": "181 characters",
+      "snippet": "banner = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...",
       "span": {
         "first": 3,
         "last": 3
@@ -28,7 +28,7 @@
       "path": "Main.hs",
       "rule": "style/long-line",
       "severity": "no-go",
-      "snippet": "271 characters",
+      "snippet": "footer = \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb...",
       "span": {
         "first": 4,
         "last": 4

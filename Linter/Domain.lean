@@ -84,7 +84,10 @@ inductive Piece where
   | skipBalanced
 
 inductive Region where
-  | anywhere | code
+  | anywhere
+  | outside (header : TokenShape)
+
+def Region.code : Region := .outside (.word .identifier "import")
 
 structure Tier where
   above : Nat
@@ -94,10 +97,10 @@ inductive Matcher where
   | tokens (languages : List Language) (region : Region) (pieces : List Piece)
   | lineDensity (languages : List Language) (shapes : List TokenShape) (atLeast : Nat)
   | declarationTokens (languages : List Language) (limit : Nat)
-  | importShare (languages : List Language) (percent : Nat)
+  | importShare (languages : List Language) (header : TokenShape) (percent : Nat)
   | repeatedLiteral (languages : List Language) (minModules : Nat) (minLength : Nat) (ignored : List String)
   | duplicateBody (languages : List Language) (minTokens : Nat) (ignored : List String)
-  | ffiPairing
+  | ffiPairing (foreign : List Piece) (exempt : TokenShape)
 
 inductive Detector where
   | fixed (severity : Severity) (matcher : Matcher)
