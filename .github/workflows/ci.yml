@@ -8,50 +8,16 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   ci:
-    name: ci
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
-
-      - name: Install tools
-        run: |
-          if ! command -v jq zip unzip > /dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y jq zip unzip
-          fi
-
-      - name: Install elan
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
-          sh elan-init.sh -y --default-toolchain "$(cat lean-toolchain)"
-          rm elan-init.sh
+      - run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain "$(cat lean-toolchain)"
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-
-      - uses: actions/cache@v6.1.0
-        with:
-          path: .lake
-          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ hashFiles('**/*.lean') }}
-          restore-keys: |
-            lake-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-
-
-      - name: Build
-        run: lake build
-
-      - name: Selftest
-        run: .lake/build/bin/linter selftest
-
-      - name: Fixture tests
-        run: tests/run.sh
-
-      - name: Self-lint
-        run: |
-          zip -qr self.zip Main.lean Linter.lean Linter
-          .lake/build/bin/linter check --archive self.zip > self.json || true
-          jq -e '.outcome == "passed"' self.json > /dev/null || { cat self.json; exit 1; }
+      - run: lake build
+      - run: .lake/build/bin/linter selftest
+      - run: tests/run.sh
+      - run: zip -qr self.zip Main.lean Linter.lean Linter && .lake/build/bin/linter check --archive self.zip > /dev/null
