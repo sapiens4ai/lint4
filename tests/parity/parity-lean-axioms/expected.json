@@ -19,7 +19,7 @@
         "last": 1
       },
       "snippet": "axiom",
-      "why": "An extra axiom can make any statement provable",
+      "why": "A user axiom can make any statement provable; native_decide is a different risk: it extends the trusted base from the kernel to the compiler and its generated code",
       "fix": "Remove the axiom and prove the fact or model it as a hypothesis"
     },
     {
@@ -33,7 +33,7 @@
         "last": 3
       },
       "snippet": "theorem native : 2 + 2 = 4 := by native_decide",
-      "why": "An extra axiom can make any statement provable",
+      "why": "A user axiom can make any statement provable; native_decide is a different risk: it extends the trusted base from the kernel to the compiler and its generated code",
       "fix": "Remove the axiom and prove the fact or model it as a hypothesis"
     }
   ],
