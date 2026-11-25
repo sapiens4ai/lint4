@@ -22,6 +22,13 @@ def timer : Rule where
         [segments ["delay", "later", "later'", "setTimeout", "setInterval"]])
       examples := [{ bad := [⟨"Bad.purs", "main = launchAff_ (delay (Milliseconds 5.0))\n"⟩],
                      good := [⟨"Good.purs", "main = log \"Try again later.\"\n"⟩] }] },
+    { detector := .fixed .noGo (.tokens [.javascript] .code
+        [names .identifier ["setTimeout", "setInterval", "setImmediate", "requestAnimationFrame"], .exact (.word .symbol "(")])
+      examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩, ⟨"Bad.js", "export const later = (f) => () => setTimeout(f, 100);\n"⟩,
+                             ⟨"Frame.purs", "module Frame where\n"⟩, ⟨"Frame.js", "export const paint = (f) => () => window.requestAnimationFrame(f);\n"⟩],
+                     good := [⟨"Good.purs", "module Good where\n"⟩,
+                       ⟨"Good.js", "export const hint = \"setTimeout(f, 100)\";\nexport const note = `setInterval(tick)`;\n" ++
+                       "export const setTimeoutMs = 100;\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.lean] .code [names .identifier ["IO.sleep"]])
       examples := [{ bad := [⟨"Bad.lean", "def wait : IO Unit := IO.sleep 100\n"⟩],
                      good := [⟨"Good.lean", "def wait : String := \"IO.sleep\"\n"⟩] }] }]
