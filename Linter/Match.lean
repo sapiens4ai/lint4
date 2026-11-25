@@ -31,6 +31,7 @@ def fits : TokenShape → Token → Bool
   | .segment name, token => token.kind == .identifier && lastSegment token.text == name
   | .containing kind fragment, token => token.kind == kind && (token.text.splitOn fragment).length > 1
   | .suffix ending, token => token.kind == .identifier && (lastSegment token.text).endsWith ending
+  | .capitalized, token => token.kind == .identifier && (lastSegment token.text).front.isUpper
   | .except shape excluded, token => fits shape token && !fits excluded token
 
 def opening (token : Token) : Option String :=
@@ -78,7 +79,10 @@ def single (test : Token → Bool) : List Token → List Nat
   | token :: _ => if test token then [1] else []
   | [] => []
 
-def spans : Piece → List Token → List Nat
+def onLine (previous : Option Token) (token : Token) : Option Token :=
+  previous.filter (·.stop.line == token.start.line)
+
+def spans (previous : Option Token) : Piece → List Token → List Nat
   | .exact shape, tokens => single (fits shape) tokens
   | .anyOf options, tokens => single (fun token => options.any (fits · token)) tokens
   | .lineStart shape, tokens => single (fun token => startsDeclaration token && fits shape token) tokens
@@ -88,6 +92,10 @@ def spans : Piece → List Token → List Nat
     | run => [run]
   | .notBefore options, token :: _ => if options.any (fits · token) then [] else [0]
   | .notBefore _, [] => [0]
+  | .notAfter options, token :: _ => if (onLine previous token).any fun before => options.any (fits · before) then [] else [0]
+  | .notAfter _, [] => [0]
+  | .sameLine, token :: _ => if (onLine previous token).isSome then [0] else []
+  | .sameLine, [] => []
   | .gap limit, tokens => List.range (reach limit 0 tokens + 1)
   | .skipBalanced, token :: rest =>
     match opening token with
@@ -95,11 +103,13 @@ def spans : Piece → List Token → List Nat
     | none => []
   | .skipBalanced, [] => []
 
-def sequence : Nat → List Piece → List Token → Option (List Token)
-  | 0, _, _ => none
-  | _ + 1, [], _ => some []
-  | fuel + 1, piece :: pieces, tokens =>
-    (spans piece tokens).findSome? fun count => (sequence fuel pieces (tokens.drop count)).map (tokens.take count ++ ·)
+def sequence : Nat → Option Token → List Piece → List Token → Option (List Token)
+  | 0, _, _, _ => none
+  | _ + 1, _, [], _ => some []
+  | fuel + 1, previous, piece :: pieces, tokens =>
+    (spans previous piece tokens).findSome? fun count =>
+      let taken := tokens.take count
+      (sequence fuel (taken.getLast? <|> previous) pieces (tokens.drop count)).map (taken ++ ·)
 
 def precedes (a b : Position) : Bool := a.line < b.line || (a.line == b.line && a.column < b.column)
 
@@ -116,15 +126,15 @@ def merged (matched : List Token) : List (List Token) → List (List Token)
     | none => matched :: previous :: older
   | [] => [matched]
 
-def scanFrom (pieces : List Piece) (fuel : Nat) : List (List Token) → List Token → List (List Token)
-  | found, [] => found.reverse
-  | found, token :: rest =>
-    match sequence fuel pieces (token :: rest) with
-    | some matched => scanFrom pieces fuel (merged matched found) rest
-    | none => scanFrom pieces fuel found rest
+def scanFrom (pieces : List Piece) (fuel : Nat) : Option Token → List (List Token) → List Token → List (List Token)
+  | _, found, [] => found.reverse
+  | previous, found, token :: rest =>
+    match sequence fuel previous pieces (token :: rest) with
+    | some matched => scanFrom pieces fuel (some token) (merged matched found) rest
+    | none => scanFrom pieces fuel (some token) found rest
 
 def scan (pieces : List Piece) (tokens : List Token) : List (List Token) :=
-  scanFrom pieces (pieces.length + 1) [] tokens
+  scanFrom pieces (pieces.length + 1) none [] tokens
 
 inductive Section where
   | shown | concealed

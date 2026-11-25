@@ -16,6 +16,8 @@ def argument : Piece :=
   .anyOf [keywords.foldl (fun shape word => .except shape (.word .identifier word)) (.kind .identifier), .kind .text, .kind .number,
     .word .symbol "$", .word .symbol "(", .word .symbol "["]
 
+def applied : List Piece := [.sameLine, argument]
+
 def timer : Rule where
   id := ⟨.safety, "timer"⟩
   why := "A timer hides a race and stands in for a real event"
@@ -29,12 +31,12 @@ def timer : Rule where
                      good := [⟨"Good.hs",
                        "import System.Timeout (timeout)\ndata Config = Config { timeout :: Int }\nlimit c = timeout c\nhint = \"timeout 5\"\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.purescript] .code
-        [segments ["delay", "later", "later'", "setTimeout", "setInterval", "setTimer"], argument])
+        ([segments ["delay", "later", "later'", "setTimeout", "setInterval", "setTimer"]] ++ applied))
       examples := [{ bad := [⟨"Bad.purs", "main = launchAff_ (delay (Milliseconds 5.0))\n"⟩, ⟨"Later.purs", "retry = E.later 300.0 $ dispatch Poll\n"⟩,
                              ⟨"Timer.purs", "main = void $ N.setTimer 1000 tick\n"⟩],
                      good := [⟨"Good.purs",
                        "main = log \"Try again later.\"\nlater :: Number -> Aff Unit -> Aff Unit\npause = let wait = delay in wait\n" ++
-                       "foreign import setTimer :: Int -> Effect Unit -> Effect Int\n"⟩] }] },
+                       "foreign import setTimer :: Int -> Effect Unit -> Effect Int\nwait = Aff.delay\nretry = 1\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.javascript] .code
         [names .identifier ["setTimeout", "setInterval", "setImmediate", "requestAnimationFrame"], .exact (.word .symbol "(")])
       examples := [{ bad := [⟨"Bad.purs", "module Bad where\n"⟩, ⟨"Bad.js", "export const later = (f) => () => setTimeout(f, 100);\n"⟩,
@@ -69,16 +71,17 @@ def escapeHatch : Rule where
     { detector := .fixed .noGo (.tokens [.haskell] .code [names .identifier ["read"], .anyOf [.word .symbol "<$>", .word .symbol "."]])
       examples := [{ bad := [⟨"Bad.hs", "number = read <$> munch1 isDigit\n"⟩],
                      good := [⟨"Good.hs", "number = readMaybe <$> munch1 isDigit\nhint = \"read <$>\"\n"⟩] }] },
-    { detector := .fixed .noGo (.tokens [.haskell] .code [names .identifier ["read"], argument])
+    { detector := .fixed .noGo (.tokens [.haskell] .code ([names .identifier ["read"]] ++ applied))
       examples := [{ bad := [⟨"Bad.hs", "port s = read s :: Int\n"⟩],
-                     good := [⟨"Good.hs", "import Text.Read (readMaybe)\nport s = readMaybe s\nmode = Mode { read = True }\nhint = \"read error\"\n"⟩] }] },
+                     good := [⟨"Good.hs", "import Text.Read (readMaybe)\nport s = readMaybe s\nmode = Mode { read = True }\nhint = \"read error\"\n" ++
+                       "parse = read\nport = 1\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.haskell] .code
-        [.anyOf [.kind .symbol, .word .identifier "then", .word .identifier "else", .word .identifier "in", .word .identifier "do",
-          .word .identifier "of"], names .identifier ["error"], argument])
+        ([.anyOf [.kind .symbol, .word .identifier "then", .word .identifier "else", .word .identifier "in", .word .identifier "do",
+          .word .identifier "of"], names .identifier ["error"]] ++ applied))
       examples := [{ bad := [⟨"Bad.hs", "boot = error $ \"missing \" <> name\n"⟩, ⟨"Case.hs", "pick x = if x then 1 else error \"no\"\n"⟩],
                      good := [⟨"Good.hs",
                        "mode = Mode { error = False }\nrun = action `catch` \\(error :: SomeException) -> case fromException error of\n" ++
-                       "  Just e -> report e\n  Nothing -> report (displayException error)\nhint = \"error\"\n"⟩] }] },
+                       "  Just e -> report e\n  Nothing -> report (displayException error)\nhint = \"error\"\nfailure = error\nport = 1\n"⟩] }] },
     { detector := .fixed .noGo (.tokens [.purescript] .code
         [names .identifier ["unsafeCoerce", "unsafePartial", "unsafePerformEffect", "unsafeCrashWith"]])
       examples := [{ bad := [⟨"Bad.purs", "cast = unsafeCoerce\n"⟩],

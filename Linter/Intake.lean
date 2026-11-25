@@ -165,10 +165,23 @@ def isChecked : Discovered → Bool
   | .checked _ | .unreadable _ _ => true
   | .orphan _ => false
 
+def measured (root : FilePath) : Nat → List FilePath → List Entry → IO (List Entry)
+  | 0, _, found => pure found
+  | _ + 1, [], found => pure found
+  | fuel + 1, path :: pending, found => do
+    let metadata ← path.symlinkMetadata
+    let listed (size : Nat) := if path == root then found else ⟨relative root path, size⟩ :: found
+    match metadata.type with
+    | .dir => measured root fuel ((← path.readDir).toList.map (·.path) ++ pending) (listed 0)
+    | .file | .symlink | .other => measured root fuel pending (listed metadata.byteSize.toNat)
+
 def extracted (policy : Policy) (archive dir : FilePath) : IO (Except IntakeError Submission) := do
   let out ← IO.Process.output { cmd := "unzip", args := #["-qq", archive.toString, "-d", dir.toString] }
+  let root ← IO.FS.realPath dir
+  if let some problem := excess policy.limits ((← measured root (policy.limits.entries + 2) [root] []).reverse) then
+    return .error (.oversized problem)
   if out.exitCode != 0 then return .error (.unpack archive out.stderr.trimAscii.toString)
-  let codebase ← collect policy (← IO.FS.realPath dir)
+  let codebase ← collect policy root
   return if codebase.found.any isChecked then .ok (.full codebase) else .error .nothing
 
 def unpacked (policy : Policy) (archive : FilePath) : IO (Except IntakeError Submission) := do

@@ -13,3 +13,4 @@ repeated-file.diff	malformed diff: A.hs appears more than once
 count-overflow.diff	F.hs: hunk has more lines than its header counts: -x = 1
 count-underflow.diff	diff ends inside a hunk: the hunk has fewer lines than its header counts
 count-underflow-next-file.diff	F.hs: malformed hunk line: diff --git a/G.hs b/G.hs
+lying-size.sh	archive entry src/Big.hs unpacks to 25000000 bytes; the limit is 20000000

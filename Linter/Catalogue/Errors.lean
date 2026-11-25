@@ -221,8 +221,10 @@ def jsonTextSearch : Rule where
 
 def continued : Piece := .notBefore (["*>", "<*", ">>", ">>=", "<>", "<$", "$>", "<$>", "<#>", "<|>", "#"].map (.word .symbol ·))
 
+def catchAll : Piece := .notAfter [.except .capitalized (.segment "Left"), .word .symbol "\\", .word .identifier "_"]
+
 def doesNothing (nothing : List Piece) : Detector :=
-  .fixed .couldBeBetter (.tokens [.haskell, .purescript] .code ([wildcard] ++ symbols ["->"] ++ [returns] ++ nothing ++ [continued]))
+  .fixed .couldBeBetter (.tokens [.haskell, .purescript] .code ([catchAll, wildcard] ++ symbols ["->"] ++ [returns] ++ nothing ++ [continued]))
 
 def noopFallback : Rule where
   id := ⟨.errors, "noop-fallback"⟩
@@ -230,14 +232,18 @@ def noopFallback : Rule where
   fix := "Handle each remaining case, or log or return an error for the unexpected ones"
   checks := [
     { detector := doesNothing [names .identifier ["unit"]]
-      examples := [{ bad := [⟨"Bad.purs", "onKey key = do\n  case key of\n    Enter -> submit\n    _ -> pure unit\n  refresh\n"⟩,
-                             ⟨"Left.purs", "save result = case result of\n  Right doc -> store doc\n  Left _ -> pure unit\n"⟩],
+      examples := [{ bad := [⟨"Left.purs", "save result = case result of\n  Right doc -> store doc\n  Left _ -> pure unit\n"⟩], good := [] },
+                   { bad := [⟨"Inline.purs", "onAny key = case key of _ -> pure unit\n"⟩], good := [] },
+                   { bad := [⟨"Bad.purs", "onKey key = do\n  case key of\n    Enter -> submit Form\n    _ -> pure unit\n  refresh\n"⟩],
                      good := [⟨"Good.purs", "onKey key = case key of\n  Enter -> submit\n  Escape -> pure unit\n  _ -> pure (Left key)\n" ++
-                       "onTab tab = case tab of\n  Home -> home\n  _ -> pure unit *> log tab\nhint = \"_ -> pure unit\"\n"⟩] }] },
+                       "onTab tab = case tab of\n  Home -> home\n  _ -> pure unit *> log tab\nhint = \"_ -> pure unit\"\n" ++
+                       "onSave r = case r of\n  Right _ -> pure unit\n  Left e -> log e\nonUser m = case m of\n  Nothing -> login\n  M.Just _ -> pure unit\n" ++
+                       "ignore = \\_ -> pure unit\n"⟩] }] },
     { detector := doesNothing (symbols ["(", ")"])
       examples := [{ bad := [⟨"Bad.hs", "onKey key = case key of\n  Enter -> submit\n  _ -> return ()\nnext = 1\n"⟩],
                      good := [⟨"Good.hs", "onKey key = case key of\n  Enter -> submit\n  Escape -> pure ()\n  _ -> pure (Just key)\n" ++
-                       "onTab tab = case tab of\n  Home -> home\n  _ -> return () >> log tab\n"⟩] }] }]
+                       "onTab tab = case tab of\n  Home -> home\n  _ -> return () >> log tab\n" ++
+                       "accept = H.defaultRequest { checkResponse = \\_ _ -> pure () }\n"⟩] }] }]
 
 def emptySentinel : Rule where
   id := ⟨.errors, "empty-sentinel"⟩
