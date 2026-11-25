@@ -13,12 +13,14 @@ def token (kind : TokenKind) (start : Position) (taken : List Char) : Token :=
 
 def isBracket (c : Char) : Bool := "(),;[]`{}".toList.contains c
 
-def quoted : List Char → List Char → Option (List Char × List Char)
-  | acc, '\\' :: c :: rest => quoted (c :: '\\' :: acc) rest
-  | acc, '"' :: rest => some (('"' :: acc).reverse, rest)
-  | _, '\n' :: _ => none
-  | acc, c :: rest => quoted (c :: acc) rest
-  | _, [] => none
+def number : List Char → List Char × List Char
+  | '.' :: '.' :: rest => ([], '.' :: '.' :: rest)
+  | c :: rest =>
+    if c.isAlphanum || c == '.' || c == '_' then
+      let (taken, after) := number rest
+      (c :: taken, after)
+    else ([], c :: rest)
+  | [] => ([], [])
 
 def untilNewline (chars : List Char) : List Char × List Char :=
   chars.span (· != '\n')

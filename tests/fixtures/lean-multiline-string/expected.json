@@ -1,0 +1,5 @@
+{"mode":"full","outcome":"blocked","checked":{"haskell":0,"purescript":0,"javascript":0,"lean":1},
+ "findings":[{"rule":"safety/sorry","severity":"no-go","path":"Main.lean","line":3,"column":25,
+   "span":{"first":3,"last":3},"snippet":"sorry",
+   "why":"An unfinished or unsound proof passes the build without proving anything","fix":"Finish the proof"}],
+ "errors":[]}

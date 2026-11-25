@@ -1,0 +1,5 @@
+{"mode":"full","outcome":"passed","checked":{"haskell":0,"purescript":0,"javascript":0,"lean":1},
+ "findings":[{"rule":"errors/default-on-error","severity":"warning","path":"Main.lean","line":1,"column":55,
+   "span":{"first":1,"last":1},"snippet":"x.getD \"\"",
+   "why":"Replacing a failure with an empty default hides the error","fix":"Propagate the error or decode into a type that cannot be empty"}],
+ "errors":[]}
