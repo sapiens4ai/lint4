@@ -18,7 +18,9 @@ lint() {
 
 for case in "$root"/tests/fixtures/*/; do
   name=$(basename "$case")
-  if [ -f "$case/input.diff" ]; then lint "$case/input.diff"; else lint "$case/files"; fi
+  if [ -f "$case/input.diff" ]; then lint "$case/input.diff"
+  elif [ -f "$case/input.zip" ]; then lint "$case/input.zip"
+  else lint "$case/files"; fi
   code=$?
   want=$(jq -r '{passed: 0, blocked: 1, incomplete: 2}[.outcome]' "$case/expected.json")
   if [ "$code" = "$want" ] && diff <(jq -S . "$case/expected.json") <(jq -S . "$work/stdout") > "$work/diff"; then
