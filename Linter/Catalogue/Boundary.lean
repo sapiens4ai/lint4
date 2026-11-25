@@ -39,7 +39,9 @@ def ownDomains : List String := [".".intercalate ["sapiens4", "ai"]]
 
 def reservedHosts : List String := [".invalid", ".local", ".test", ".example", "example.com"]
 
-def namespaces : List String := ["http://www.w3.org/"]
+def namespaces : List String := ["http://www.w3.org/", "http://www.apple.com/DTDs/", "file://"]
+
+def bareSchemes : List String := ["\"https://\"", "\"http://\""]
 
 def hostEdges : List String := ["\"", "'", "`", " ", "/", ".", "@", "(", "="]
 
@@ -55,7 +57,7 @@ def withoutAny (shape : TokenShape) (excluded : List TokenShape) : TokenShape :=
 def ownHosts : List TokenShape := ownDomains.flatMap bounded
 
 def address : TokenShape :=
-  withoutAny (.containing .text "://") (ownHosts ++ reservedHosts.flatMap bounded ++ namespaces.map (.containing .text))
+  withoutAny (.containing .text "://") (ownHosts ++ reservedHosts.flatMap bounded ++ namespaces.map (.containing .text) ++ bareSchemes.map (.word .text))
 
 def own : String := ownDomains.headD ""
 
