@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: linter checks a unified diff or a zip archive sent over HTTPS
+Parameters:
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
 Resources:
   Network:
     Type: AWS::EC2::VPC
@@ -20,6 +25,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
+      Environment:
+        Variables:
+          LINT4_ORIGIN_SECRET: !Ref OriginSecret
       Architectures: [arm64]
       MemorySize: 1024
       Timeout: 30
