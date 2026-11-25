@@ -73,6 +73,7 @@ inductive TokenShape where
   | segment (name : String)
   | containing (kind : TokenKind) (fragment : String)
   | suffix (ending : String)
+  | capitalized
   | except (shape : TokenShape) (excluded : TokenShape)
 
 inductive Piece where
@@ -81,6 +82,7 @@ inductive Piece where
   | lineStart (shape : TokenShape)
   | many (shape : TokenShape)
   | notBefore (shapes : List TokenShape)
+  | notAfter (shapes : List TokenShape)
   | gap (limit : Nat)
   | skipBalanced
 
