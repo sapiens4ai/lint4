@@ -1,0 +1,17 @@
+{
+  "checked": {
+    "haskell": 0,
+    "javascript": 1,
+    "lean": 0,
+    "purescript": 1
+  },
+  "errors": [
+    {
+      "message": "1:26: unterminated string",
+      "path": "src/Clock.js"
+    }
+  ],
+  "findings": [],
+  "mode": "full",
+  "outcome": "incomplete"
+}

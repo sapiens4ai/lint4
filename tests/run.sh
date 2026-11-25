@@ -8,6 +8,8 @@ for case in "$root"/tests/fixtures/*/; do
   work=$(mktemp -d)
   if [ -f "$case/input.diff" ]; then
     "$bin" check --diff "$case/input.diff" > "$work/actual.json" 2> "$work/stderr"
+  elif [ -f "$case/input.zip" ]; then
+    "$bin" check --archive "$case/input.zip" > "$work/actual.json" 2> "$work/stderr"
   else
     (cd "$case/files" && zip -qr "$work/input.zip" .)
     "$bin" check --archive "$work/input.zip" > "$work/actual.json" 2> "$work/stderr"

@@ -213,21 +213,18 @@ def duplicates (minTokens : Nat) (ignored : List String) (files : List LexedFile
 def foreignImport : List Piece :=
   [.exact (.word .identifier "foreign"), .exact (.word .identifier "import"), .exact (.kind .identifier)]
 
-def sibling (path extension : String) : String := ((System.FilePath.mk path).withExtension extension).toString
+def orphanHit : Discovered → List (String × Hit)
+  | .orphan path => [(path, ⟨⟨1, 1⟩, ⟨1, 1⟩, path⟩)]
+  | .checked _ | .unreadable _ _ => []
 
-def unpaired (files : List LexedFile) : List (String × Hit) :=
-  let paths := files.map pathOf
-  files.flatMap fun file =>
-    let path := pathOf file
-    match file.file.language with
-    | .purescript =>
-      let imports := (scan foreignImport (code file.tokens)).filter fun matched => !(matched.getLast?.any (·.text == "data"))
-      match (imports.filterMap hit).head? with
-      | some found => if paths.contains (sibling path "js") then [] else [(path, found)]
-      | none => []
-    | .javascript => if paths.contains (sibling path "purs") then [] else [(path, ⟨⟨1, 1⟩, ⟨1, 1⟩, path⟩)]
-    | .haskell => []
-    | .lean => []
+def unpaired (codebase : Codebase) (files : List LexedFile) : List (String × Hit) :=
+  let hosts := files.filter (·.file.language == .purescript)
+  let missing := hosts.flatMap fun file =>
+    let imports := (scan foreignImport (code file.tokens)).filter fun matched => !(matched.getLast?.any (·.text == "data"))
+    match (imports.filterMap hit).head? with
+    | some found => if codebase.paired.contains (pathOf file) then [] else [(pathOf file, found)]
+    | none => []
+  missing ++ codebase.found.flatMap orphanHit
 
 def within (languages : List Language) (files : List LexedFile) : List LexedFile :=
   files.filter fun file => languages.contains file.file.language
@@ -235,14 +232,14 @@ def within (languages : List Language) (files : List LexedFile) : List LexedFile
 def eachFile (languages : List Language) (files : List LexedFile) (find : LexedFile → List Hit) : List (String × Hit) :=
   (within languages files).flatMap fun file => (find file).map (pathOf file, ·)
 
-def matcherHits : Matcher → List LexedFile → List (String × Hit)
+def matcherHits (codebase : Codebase) : Matcher → List LexedFile → List (String × Hit)
   | .tokens languages region pieces, files => eachFile languages files fun file => tokenHits region pieces file.tokens
   | .lineDensity languages shapes atLeast, files => eachFile languages files (denseLines shapes atLeast)
   | .declarationTokens languages limit, files => eachFile languages files (largeDeclarations limit)
   | .importShare languages percent, files => eachFile languages files (heavyImports percent)
   | .repeatedLiteral languages minModules minLength ignored, files => repeated minModules minLength ignored (within languages files)
   | .duplicateBody languages minTokens ignored, files => duplicates minTokens ignored (within languages files)
-  | .ffiPairing, files => unpaired files
+  | .ffiPairing, files => unpaired codebase files
 
 def fileScoped : Matcher → Bool
   | .tokens .. | .lineDensity .. | .declarationTokens .. | .importShare .. => true
@@ -254,8 +251,8 @@ def runsIn : Mode → Detector → Bool
   | .diff, .fixed _ matcher => fileScoped matcher
   | .diff, .lineLength _ _ => true
 
-def detectorHits : Detector → List LexedFile → List Placed
-  | .fixed severity matcher, files => (matcherHits matcher files).map fun (path, found) => ⟨severity, path, found⟩
+def detectorHits (codebase : Codebase) : Detector → List LexedFile → List Placed
+  | .fixed severity matcher, files => (matcherHits codebase matcher files).map fun (path, found) => ⟨severity, path, found⟩
   | .lineLength languages tiers, files => (within languages files).flatMap (longLines tiers)
 
 end Linter.Match

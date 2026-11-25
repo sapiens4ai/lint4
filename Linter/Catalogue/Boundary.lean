@@ -13,7 +13,9 @@ def ffi : Rule where
       examples := [{ bad := [⟨"src/Clock.purs", "module Clock where\nforeign import now :: Effect Number\n"⟩],
                      good := [⟨"src/Clock.purs", "module Clock where\nforeign import now :: Effect Number\nforeign import data Handle :: Type\n"⟩,
                               ⟨"src/Clock.js", "export const now = () => Date.now();\n"⟩,
-                              ⟨"src/Types.purs", "module Types where\nforeign import data Handle :: Type\n"⟩] }] }]
+                              ⟨"src/Types.purs", "module Types where\nforeign import data Handle :: Type\n"⟩] },
+                   { bad := [⟨"src/Stray.js", "export const stray = 1;\n"⟩],
+                     good := [⟨"src/Pair.purs", "module Pair where\nforeign import pair :: Int\n"⟩, ⟨"src/Pair.js", "export const pair = 1;\n"⟩] }] }]
 
 def importing (language : Language) (fragment : String) : Matcher :=
   .tokens [language] .anywhere [.lineStart (.word .identifier "import"), .gap 1, .exact (.containing .identifier fragment)]

@@ -6,7 +6,7 @@ open Linter
 def usage : String := "usage: linter check --archive FILE.zip | linter check --diff FILE|- | linter selftest"
 
 def flagged (rule : Rule) (files : List SourceFile) : Nat :=
-  ((Verdict.report [rule] (.full (Intake.checkedFiles files))).findings.filter (·.rule == rule.id)).length
+  ((Verdict.report [rule] (.full (Intake.discover Catalogue.discovery files))).findings.filter (·.rule == rule.id)).length
 
 def failures (rule : Rule) : List String :=
   rule.checks.flatMap fun check => check.examples.flatMap fun sample =>
@@ -21,21 +21,18 @@ def selftest : IO UInt32 := do
 
 def check (input : Intake.Input) : IO UInt32 := do
   match ← Intake.read Catalogue.discovery input with
-  | .error message =>
-    IO.eprintln message
+  | .error problem =>
+    IO.eprintln problem.message
     pure Outcome.incomplete.exitCode
   | .ok submission =>
     let report := Verdict.report Catalogue.rules submission
     IO.println (Verdict.toJson report).compress
     pure report.outcome.exitCode
 
-def diffText : String → IO String
-  | "-" => do (← IO.getStdin).readToEnd
-  | path => IO.FS.readFile path
-
 def main : List String → IO UInt32
   | ["check", "--archive", archive] => check (.archive archive)
-  | ["check", "--diff", source] => do check (.diff (← diffText source))
+  | ["check", "--diff", "-"] => check (.diff .stdin)
+  | ["check", "--diff", path] => check (.diff (.file path))
   | ["selftest"] => selftest
   | _ => do
     IO.eprintln usage

@@ -62,6 +62,20 @@
         "last": 7
       },
       "why": "A foreign import without its JavaScript module, or JavaScript without its PureScript module, breaks the FFI boundary"
+    },
+    {
+      "column": 1,
+      "fix": "Keep every foreign module as a .purs and .js pair with the same name",
+      "line": 1,
+      "path": "src/Orphan.js",
+      "rule": "boundary/ffi",
+      "severity": "warning",
+      "snippet": "src/Orphan.js",
+      "span": {
+        "first": 1,
+        "last": 1
+      },
+      "why": "A foreign import without its JavaScript module, or JavaScript without its PureScript module, breaks the FFI boundary"
     }
   ],
   "mode": "full",

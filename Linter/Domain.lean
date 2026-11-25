@@ -131,8 +131,21 @@ structure AddedLines where
   path : String
   lines : List Nat
 
+structure FileError where
+  path : String
+  message : String
+
+inductive Discovered where
+  | checked (file : CheckedFile)
+  | unreadable (language : Language) (problem : FileError)
+  | orphan (path : String)
+
+structure Codebase where
+  found : List Discovered
+  paired : List String
+
 inductive Submission where
-  | full (files : List CheckedFile)
+  | full (codebase : Codebase)
   | diff (files : List CheckedFile) (added : List AddedLines)
 
 inductive Mode where
@@ -170,10 +183,6 @@ def Outcome.exitCode : Outcome → UInt32
   | .passed => 0
   | .blocked => 1
   | .incomplete => 2
-
-structure FileError where
-  path : String
-  message : String
 
 structure Report where
   mode : Mode

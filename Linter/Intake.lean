@@ -4,28 +4,98 @@ namespace Linter.Intake
 
 open Linter System
 
+structure Foreign where
+  script : String
+  host : String
+  language : Language
+
+inductive Marker where
+  | header (lines : Nat) (phrases : List (List String))
+  | minified (maxLines : Nat) (longest : Nat)
+
 structure Policy where
   vendored : List String
+  foreign : Foreign
+  generated : List Marker
+
+inductive DiffSource where
+  | stdin
+  | file (path : FilePath)
 
 inductive Input where
   | archive (path : FilePath)
-  | diff (text : String)
+  | diff (source : DiffSource)
+
+inductive IntakeError where
+  | unpack (archive : FilePath) (detail : String)
+  | unreadable (source : String) (detail : String)
+  | malformed (detail : String)
+
+def IntakeError.message : IntakeError → String
+  | .unpack archive detail => s!"cannot unpack {archive}: {detail}"
+  | .unreadable source detail => s!"cannot read {source}: {detail}"
+  | .malformed detail => detail
+
+inductive Kind where
+  | source (language : Language)
+  | orphan
 
 def relative (root path : FilePath) : String :=
   (path.toString.drop (root.toString.length + 1)).toString
 
-def languageOf (paths : List String) (path : String) : Option Language :=
-  let file := System.FilePath.mk path
-  match file.extension with
-  | some "js" => if paths.contains (file.withExtension "purs").toString then some .javascript else none
-  | some other => Language.ofExtension other
+def sibling (path extension : String) : String := ((System.FilePath.mk path).withExtension extension).toString
+
+def kindOf (foreign : Foreign) (paths : List String) (path : String) : Option Kind :=
+  match (System.FilePath.mk path).extension with
+  | some extension =>
+    if extension == foreign.script then
+      if paths.contains (sibling path foreign.host) then some (.source foreign.language) else some .orphan
+    else (Language.ofExtension extension).map .source
   | none => none
 
-def checkedFiles (files : List SourceFile) : List CheckedFile :=
-  let paths := files.map (·.path)
-  files.filterMap fun file => (languageOf paths file.path).map (⟨·, file⟩)
+def marks (code : String) : Marker → Bool
+  | .header count phrases =>
+    let head := String.intercalate "\n" ((code.splitOn "\n").take count)
+    phrases.all fun options => options.any fun phrase => (head.splitOn phrase).length > 1
+  | .minified maxLines longest =>
+    let lines := (code.trimAsciiEnd.toString.splitOn "\n")
+    lines.length ≤ maxLines && lines.any (·.length ≥ longest)
 
-def collect (policy : Policy) (root : FilePath) : IO (List CheckedFile) := do
+def place (policy : Policy) (kind : Kind) (source : SourceFile) : Option Discovered :=
+  if policy.generated.any (marks source.code) then none
+  else match kind with
+    | .source language => some (.checked ⟨language, source⟩)
+    | .orphan => some (.orphan source.path)
+
+def pairedHosts (foreign : Foreign) (paths : List String) : List String :=
+  paths.filter fun path =>
+    (System.FilePath.mk path).extension == some foreign.host && paths.contains (sibling path foreign.script)
+
+def discover (policy : Policy) (files : List SourceFile) : Codebase :=
+  let paths := files.map (·.path)
+  ⟨files.filterMap fun file => (kindOf policy.foreign paths file.path).bind (place policy · file), pairedHosts policy.foreign paths⟩
+
+def decoded (bytes : ByteArray) : Except String String :=
+  match String.fromUTF8? bytes with
+  | some text => .ok text
+  | none => .error "file is not valid UTF-8 text"
+
+def readSource (root path : FilePath) : IO (Except String String) := do
+  match ← (IO.FS.readBinFile path).toBaseIO with
+  | .ok bytes => pure (decoded bytes)
+  | .error problem => pure (.error ((toString problem).replace (root.toString ++ "/") ""))
+
+def found (policy : Policy) (root : FilePath) (names : List String) (path : FilePath) : IO (List Discovered) := do
+  let name := relative root path
+  match kindOf policy.foreign names name with
+  | none => pure []
+  | some kind =>
+    match ← readSource root path, kind with
+    | .ok code, _ => pure (place policy kind ⟨name, code⟩).toList
+    | .error message, .source language => pure [.unreadable language ⟨name, message⟩]
+    | .error _, .orphan => pure [.orphan name]
+
+def collect (policy : Policy) (root : FilePath) : IO Codebase := do
   let paths ← root.walkDir fun dir => do
     let link := (← dir.symlinkMetadata).type == .symlink
     pure (!link && !(dir.fileName.any policy.vendored.contains))
@@ -33,11 +103,8 @@ def collect (policy : Policy) (root : FilePath) : IO (List CheckedFile) := do
   for path in paths do
     if (← path.symlinkMetadata).type != .symlink then plain := path :: plain
   let names := plain.reverse.map (relative root ·)
-  let mut files : List CheckedFile := []
-  for path in plain.reverse do
-    if let some language := languageOf names (relative root path) then
-      files := ⟨language, ⟨relative root path, ← IO.FS.readFile path⟩⟩ :: files
-  pure files.reverse
+  let discovered ← plain.reverse.flatMapM (found policy root names)
+  pure ⟨discovered, pairedHosts policy.foreign names⟩
 
 structure Changed where
   path : Option String
@@ -115,16 +182,35 @@ def rebuild (policy : Policy) (changes : List Changed) : Submission :=
     changed.path.bind fun path =>
       if changed.hunks == 0 || vendoredPath policy path then none
       else some (SourceFile.mk path (String.join (changed.lines.toList.map (· ++ "\n"))), changed.added.toList)
-  let files := sources.filterMap fun (source, _) => (languageOf present source.path).map (⟨·, source⟩)
+  let files := sources.flatMap fun (source, _) =>
+    match (kindOf policy.foreign present source.path).bind (place policy · source) with
+    | some (.checked file) => [file]
+    | some (.unreadable _ _) | some (.orphan _) | none => []
   .diff files (sources.map fun (source, lines) => AddedLines.mk source.path lines)
 
-def read (policy : Policy) : Input → IO (Except String Submission)
-  | .archive archive =>
-    IO.FS.withTempDir fun dir => do
-      let out ← IO.Process.output { cmd := "unzip", args := #["-qq", archive.toString, "-d", dir.toString] }
-      if out.exitCode != 0 then return .error s!"cannot unpack {archive}: {out.stderr.trimAscii}"
-      let root ← IO.FS.realPath dir
-      return .ok (.full (← collect policy root))
-  | .diff text => pure ((parse text).map (rebuild policy))
+def diffText : DiffSource → IO String
+  | .stdin => do (← IO.getStdin).readToEnd
+  | .file path => IO.FS.readFile path
+
+def sourceName : DiffSource → String
+  | .stdin => "standard input"
+  | .file path => path.toString
+
+def unpacked (policy : Policy) (archive : FilePath) : IO (Except IntakeError Submission) :=
+  IO.FS.withTempDir fun dir => do
+    let out ← IO.Process.output { cmd := "unzip", args := #["-qq", archive.toString, "-d", dir.toString] }
+    if out.exitCode != 0 then return .error (.unpack archive out.stderr.trimAscii.toString)
+    let root ← IO.FS.realPath dir
+    return .ok (.full (← collect policy root))
+
+def read (policy : Policy) : Input → IO (Except IntakeError Submission)
+  | .archive archive => do
+    match ← (unpacked policy archive).toBaseIO with
+    | .ok result => pure result
+    | .error problem => pure (.error (.unpack archive (toString problem)))
+  | .diff source => do
+    match ← (diffText source).toBaseIO with
+    | .ok text => pure ((parse text).mapError IntakeError.malformed |>.map (rebuild policy))
+    | .error problem => pure (.error (.unreadable (sourceName source) (toString problem)))
 
 end Linter.Intake
