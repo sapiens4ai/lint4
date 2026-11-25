@@ -9,14 +9,16 @@ suppressions.
 
 ## Use
 
+`LINT4_URL` is the team endpoint; ask the maintainers for it.
+
 | Job | Request |
 | --- | --- |
-| Check my change | `POST https://dev.sapiens4.ai/lint4/diff`, body = `git diff --unified=100000` |
-| Check the whole project | `POST https://dev.sapiens4.ai/lint4/full`, body = a zip of the source |
+| Check my change | `POST $LINT4_URL/diff`, body = `git diff --unified=100000` |
+| Check the whole project | `POST $LINT4_URL/full`, body = a zip of the source |
 
 ```sh
-git diff --unified=100000 main | curl -sS --compressed --data-binary @- https://dev.sapiens4.ai/lint4/diff
-git archive --format=zip HEAD > src.zip && curl -sS --compressed --data-binary @src.zip https://dev.sapiens4.ai/lint4/full
+git diff --unified=100000 main | curl -sS --compressed --data-binary @- "$LINT4_URL/diff"
+git archive --format=zip HEAD > src.zip && curl -sS --compressed --data-binary @src.zip "$LINT4_URL/full"
 ```
 
 The answer is one JSON report: findings rated `no-go`, `warning` or
@@ -58,5 +60,5 @@ Exit code: 0 passed, 1 blocked, 2 incomplete or rejected input.
 Other repositories call `uses: sapiens4ai/lint4/.github/workflows/check.yml@main`:
 it sends the pull request or push diff and annotates findings in the code.
 
-`service/` holds the AWS Lambda image and SAM template:
-`sam build --template service/template.yaml && sam deploy --stack-name linter-sapiens4 --region eu-north-1 --resolve-s3 --resolve-image-repos --capabilities CAPABILITY_IAM`.
+`service/` holds the AWS Lambda image and SAM template; deploy with
+`sam build --template service/template.yaml && sam deploy --guided`.
