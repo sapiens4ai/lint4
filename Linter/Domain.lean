@@ -85,11 +85,22 @@ inductive Piece where
 inductive Region where
   | anywhere | code
 
+structure Tier where
+  above : Nat
+  severity : Severity
+
 inductive Matcher where
   | tokens (languages : List Language) (region : Region) (pieces : List Piece)
+  | lineDensity (languages : List Language) (shapes : List TokenShape) (atLeast : Nat)
+  | declarationTokens (languages : List Language) (limit : Nat)
+  | importShare (languages : List Language) (percent : Nat)
+  | repeatedLiteral (languages : List Language) (minModules : Nat) (minLength : Nat) (ignored : List String)
+  | duplicateBody (languages : List Language) (minTokens : Nat) (ignored : List String)
+  | ffiPairing
 
 inductive Detector where
   | fixed (severity : Severity) (matcher : Matcher)
+  | lineLength (languages : List Language) (tiers : List Tier)
 
 structure SourceFile where
   path : String

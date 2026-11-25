@@ -81,7 +81,7 @@ def lex : Nat → Position → Array Token → List Char → Except LexError (Ar
     | _ =>
       if c.isWhitespace then lex fuel (step position c) tokens rest
       else if isNameStart c then
-        let (taken, after) := name chars.length chars
+        let (taken, after) := name (fuel + 1) chars
         emit .identifier taken after
       else if c.isDigit then
         let (taken, after) := chars.span fun d => d.isAlphanum || d == '.' || d == '_'
