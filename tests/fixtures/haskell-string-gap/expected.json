@@ -1,5 +1,0 @@
-{"mode":"full","outcome":"blocked","checked":{"haskell":1,"purescript":0,"javascript":0,"lean":0},
- "findings":[{"rule":"safety/escape-hatch","severity":"no-go","path":"Main.hs","line":5,"column":12,
-   "span":{"first":5,"last":5},"snippet":"head",
-   "why":"Partial functions and unsafe casts bypass the type system","fix":"Handle every case and decode values with real types"}],
- "errors":[]}

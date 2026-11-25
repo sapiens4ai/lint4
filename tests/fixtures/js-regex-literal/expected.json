@@ -1,5 +1,0 @@
-{"mode":"full","outcome":"blocked","checked":{"haskell":0,"purescript":1,"javascript":1,"lean":0},
- "findings":[{"rule":"safety/timer","severity":"no-go","path":"Text.js","line":4,"column":35,
-   "span":{"first":4,"last":4},"snippet":"setTimeout (",
-   "why":"A timer hides a race and stands in for a real event","fix":"Bind the work to pulse"}],
- "errors":[]}

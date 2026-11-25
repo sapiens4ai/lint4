@@ -1,0 +1,8 @@
+{"mode": "full", "outcome": "incomplete", "checked": {"haskell": 0, "purescript": 0, "javascript": 0, "lean": 2},
+ "findings": [
+  {"rule": "errors/default-on-error", "severity": "warning", "path": "Main.lean", "line": 3, "column": 55, "span": {"first": 3, "last": 3}, "snippet": "x.getD \"\"", "why": "Replacing a failure with an empty default hides the error", "fix": "Propagate the error or decode into a type that cannot be empty"},
+  {"rule": "style/debug-trace", "severity": "warning", "path": "Main.lean", "line": 8, "column": 39, "span": {"first": 8, "last": 8}, "snippet": "dbg_trace", "why": "Debug traces are leftovers that print outside the program's own output", "fix": "Remove the trace"}
+ ],
+ "errors": [
+  {"path": "Broken.lean", "message": "1:32: unterminated string"}
+ ]}

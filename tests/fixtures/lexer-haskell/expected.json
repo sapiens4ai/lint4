@@ -1,0 +1,7 @@
+{"mode": "full", "outcome": "blocked", "checked": {"haskell": 1, "purescript": 0, "javascript": 0, "lean": 0},
+ "findings": [
+  {"rule": "safety/escape-hatch", "severity": "no-go", "path": "Main.hs", "line": 9, "column": 17, "span": {"first": 9, "last": 9}, "snippet": "head", "why": "Partial functions and unsafe casts bypass the type system", "fix": "Handle every case and decode values with real types"},
+  {"rule": "style/comment", "severity": "no-go", "path": "Main.hs", "line": 10, "column": 1, "span": {"first": 10, "last": 10}, "snippet": "{- outer {- inner -} head xs -}", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"},
+  {"rule": "style/comment", "severity": "no-go", "path": "Main.hs", "line": 11, "column": 16, "span": {"first": 11, "last": 11}, "snippet": "-- done", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"}
+ ],
+ "errors": []}

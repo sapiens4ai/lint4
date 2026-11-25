@@ -1,0 +1,9 @@
+{"mode": "diff", "outcome": "blocked", "checked": {"haskell": 5, "purescript": 0, "javascript": 0, "lean": 0},
+ "findings": [
+  {"rule": "style/comment", "severity": "no-go", "path": "A.hs", "line": 2, "column": 7, "span": {"first": 2, "last": 2}, "snippet": "-- mnemonic", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"},
+  {"rule": "style/comment", "severity": "no-go", "path": "a/C.hs", "line": 2, "column": 7, "span": {"first": 2, "last": 2}, "snippet": "-- no prefix", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"},
+  {"rule": "style/comment", "severity": "no-go", "path": "src/B.hs", "line": 2, "column": 7, "span": {"first": 2, "last": 2}, "snippet": "-- mnemonic new file", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"},
+  {"rule": "style/comment", "severity": "no-go", "path": "src/Say\"Hi\"\tX.hs", "line": 2, "column": 7, "span": {"first": 2, "last": 2}, "snippet": "-- escapes", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"},
+  {"rule": "style/comment", "severity": "no-go", "path": "src/Ünïcode.hs", "line": 2, "column": 7, "span": {"first": 2, "last": 2}, "snippet": "-- octal", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"}
+ ],
+ "errors": []}

@@ -1,0 +1,9 @@
+{"mode": "diff", "outcome": "blocked", "checked": {"haskell": 3, "purescript": 1, "javascript": 1, "lean": 0},
+ "findings": [
+  {"rule": "safety/timer", "severity": "no-go", "path": "src/Lone.js", "line": 3, "column": 33, "span": {"first": 3, "last": 3}, "snippet": "setTimeout (", "why": "A timer hides a race and stands in for a real event", "fix": "Bind the work to pulse"},
+  {"rule": "safety/timer", "severity": "no-go", "path": "src/Main.hs", "line": 5, "column": 8, "span": {"first": 5, "last": 5}, "snippet": "threadDelay", "why": "A timer hides a race and stands in for a real event", "fix": "Bind the work to pulse"},
+  {"rule": "style/comment", "severity": "no-go", "path": "src/Main.hs", "line": 5, "column": 25, "span": {"first": 5, "last": 5}, "snippet": "-- wait", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"},
+  {"rule": "style/large-declaration", "severity": "could-be-better", "path": "src/Report.hs", "line": 3, "column": 1, "span": {"first": 3, "last": 11}, "snippet": "401 tokens: total = 1 + 1 +", "why": "A very large declaration does too many things to understand or test in one piece", "fix": "Split the declaration into smaller named parts"},
+  {"rule": "style/comment", "severity": "no-go", "path": "src/Win.hs", "line": 2, "column": 7, "span": {"first": 2, "last": 2}, "snippet": "-- crlf", "why": "Comments are banned: names and types carry the meaning", "fix": "Delete the comment and make the code say it"}
+ ],
+ "errors": []}
