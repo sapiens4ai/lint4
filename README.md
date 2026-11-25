@@ -27,6 +27,13 @@ file could not be checked) or `passed`. Diff mode reports only findings that
 touch added lines, so legacy code stays quiet. Bad input gets HTTP 400 with the
 reason.
 
+To see findings in the terminal on every `git push` and stop a push that would
+be blocked, install the hook in a repository (needs `curl` and `jq`):
+
+```sh
+curl -sSfL https://raw.githubusercontent.com/sapiens4ai/lint4/main/hooks/pre-push -o .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+```
+
 ## How it works
 
 `Intake` unpacks the zip or rebuilds changed files from the diff and keeps
