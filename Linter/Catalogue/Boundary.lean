@@ -54,7 +54,14 @@ def bounded (host : String) : List TokenShape :=
 def withoutAny (shape : TokenShape) (excluded : List TokenShape) : TokenShape :=
   excluded.foldl .except shape
 
-def ownHosts : List TokenShape := ownDomains.flatMap bounded
+def addressBefore : List String := ["\"", "'", "`", "://", "@", "."]
+
+def addressAfter : List String := ["\"", "'", "`", "/", ":", "?", "#"]
+
+def addressed (host : String) : List TokenShape :=
+  addressBefore.flatMap fun edge => addressAfter.map fun ending => .containing .text (edge ++ host ++ ending)
+
+def ownHosts : List TokenShape := ownDomains.flatMap addressed
 
 def address : TokenShape :=
   withoutAny (.containing .text "://") (ownHosts ++ reservedHosts.flatMap bounded ++ namespaces.map (.containing .text) ++ bareSchemes.map (.word .text))
@@ -69,9 +76,12 @@ def hardcodedEndpoint : Rule where
     { detector := .fixed .noGo (.tokens Language.all .anywhere [.anyOf ownHosts])
       examples := [{ bad := [⟨"Telemetry.hs", s!"module Telemetry where\nendpoint = maybe \"https://telemetry.{own}\" id <$> lookupEnv \"ORIGIN\"\n"⟩],
                      good := [⟨"Telemetry.hs", "module Telemetry where\nendpoint = lookupEnv \"SAPIENS_TELEMETRY_ORIGIN\"\n"⟩,
-                              ⟨"Brand.purs", s!"module Brand where\nname = \"docs.{own}d\"\n"⟩] },
+                              ⟨"Brand.purs", s!"module Brand where\nname = \"docs.{own}d\"\nwords = \"Sapiens4, relay, {own}, Whisper.\"\n"⟩,
+                              ⟨"Footer.purs", s!"module Footer where\nfooter = link origin \"{own} ↗\"\nnote = \"visit {own}/help\"\n"⟩] },
                    { bad := [⟨"Relay.purs", "module Relay where\nforeign import relay :: String\n"⟩,
-                             ⟨"Relay.js", s!"export const relay = \"remote-relay.{own}\";\n"⟩],
+                             ⟨"Relay.js", s!"export const relay = \"remote-relay.{own}\";\n"⟩,
+                             ⟨"Mail.hs", s!"module Mail where\nsupport = \"help@{own}\"\n"⟩,
+                             ⟨"Bare.purs", s!"module Bare where\nhost = \"{own}:443\"\n"⟩],
                      good := [⟨"Relay.purs", "module Relay where\nforeign import relay :: String\n"⟩,
                               ⟨"Relay.js", "export const relay = process.env.RELAY_ORIGIN;\n"⟩] }] },
     { detector := .fixed .warning (.tokens Language.all .anywhere [.exact address])
