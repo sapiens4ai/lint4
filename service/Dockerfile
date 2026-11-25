@@ -10,7 +10,7 @@ COPY Linter Linter
 RUN lake build linter
 
 FROM public.ecr.aws/lambda/provided:al2023
-RUN dnf install -y jq unzip && dnf clean all
+RUN dnf install -y jq unzip gzip && dnf clean all
 COPY --from=build /src/.lake/build/bin/linter /usr/local/bin/linter
 COPY service/bootstrap ${LAMBDA_RUNTIME_DIR}/bootstrap
 ENV LINTER_TIMEOUT=25

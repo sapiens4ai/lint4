@@ -35,13 +35,22 @@ check() {
   esac
 }
 
+respond() {
+  if jq -e '.headers["accept-encoding"] // "" | test("gzip")' event > /dev/null; then
+    gzip -c body | base64 -w 0 > packed
+    jq -n --argjson status "$status" --rawfile body packed \
+      '{statusCode: $status, isBase64Encoded: true, headers: {"content-type": "application/json", "content-encoding": "gzip"}, body: $body}'
+  else
+    jq -n --argjson status "$status" --rawfile body body \
+      '{statusCode: $status, headers: {"content-type": "application/json"}, body: $body}'
+  fi | curl -sS -X POST "$api/$id/response" --data-binary @- > /dev/null
+}
+
 while true; do
   work=$(mktemp -d) && cd "$work"
   curl -sS -D headers -o event "$api/next"
   id=$(tr -d '\r' < headers | awk -F': ' 'tolower($1) == "lambda-runtime-aws-request-id" {print $2}')
   check
-  jq -n --argjson status "$status" --rawfile body body \
-    '{statusCode: $status, headers: {"content-type": "application/json"}, body: $body}' |
-    curl -sS -X POST "$api/$id/response" --data-binary @- > /dev/null
+  respond
   cd / && rm -rf "$work"
 done
